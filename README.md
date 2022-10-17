@@ -63,3 +63,4 @@ BSD 3-clause. See [LICENSE.md](LICENSE.md).
 
 - [ ] File and link to feedback items for the limitations and issues above.
 - [ ] More configuration options.
+- [ ] Searching for .metallib works in Xcode Unit Tests but fails under `swift test`. Why?
