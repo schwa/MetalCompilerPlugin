@@ -14,7 +14,7 @@ Swift Package Manager now[^1] seems to compile all Metal files within a target i
 >
 > If building with the 'metal' command line tool, include the options '-gline-tables-only' and '-frecord-sources'.
 
-([Screenshot](Documentation/Screenshot%201-Thumbnail.png)).
+([Screenshot](Documentation/Screenshot%201.png)).
 
 This plug-in provides an alternative way to compile Metal files into a `metallib` that can be debugged.
 
