@@ -29,11 +29,11 @@ For example:
     ]
 ```
 
-Note the title of the output metal library file will be `debug.metallib` and will live side-by-side with the `default.metallib` file. See [Limitations][#Limitations] below.
+Note the title of the output metal library file will be `debug.metallib` and will live side-by-side with the `default.metallib` file. See [Limitations](#limitations) below.
 
 ## Limitations
 
-The output metal library file will be `debug.metallib` and will live side-by-side with the `default.metallib` file. This is because the `default.metallib` file is created by the Swift Package Manager and cannot be overridden.
+The output metal library file will be `debug.metallib` and will live side-by-side with the `default.metallib` file. This is because of the `default.metallib` file is created by the Swift Package Manager and cannot be overridden.
 
 You will not be able to use `MTLDevice.makeDefaultLibrary()` to load the `debug.metallib` file. Instead, you will need to use `MTLDevice.makeLibrary(url:)` to load the `debug.metallib` file. See the unit tests for an example.
 
