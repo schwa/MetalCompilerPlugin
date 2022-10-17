@@ -51,7 +51,7 @@ A "Pure-Metal" target is a target that contains only Metal source code and heade
 
 This is also useful so that Metal and Swift can share types defined in common header files. For example, a Vertex or Uniforms struct defined in a header file can be used by both Metal and Swift code.
 
-Sharing of Metal types with Swift prevents duplication of types and makes sure that your types have a consistent layout and packing across Metal and Swift.
+Direct sharing of Metal types with Swift prevents duplication of types and makes sure that your types have a consistent layout and packing across Metal and Swift. Simply defining the same type in both Metal and Swift manually is not enough and can lead to subtle memory alignment-related crashes or data corruption.
 
 See the `ExampleShaders` target in the `Package.swift` file. The "Pure-Metal" target must not contain any Swift files. It should contain your Metal source code and header files (contained in an included folder). It should also contain a `Module.map` file that allows Swift to import the header files.
 
