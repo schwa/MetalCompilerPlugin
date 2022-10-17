@@ -14,13 +14,13 @@ Swift Package Manager now[^1] seems to compile all Metal files within a target i
 >
 > If building with the 'metal' command line tool, include the options '-gline-tables-only' and '-frecord-sources'.
 
-![Screenshot of Xcode failing to debug your metallib](Documentation/Screenshot%201-Thumbnail.png).
+([Screenshot](Documentation/Screenshot%201-Thumbnail.png)).
 
 This plug-in provides an alternative way to compile Metal files into a `metallib` that can be debugged.
 
 This project also shows how to create a "_pseudo-Metal target_" that can be used to contain your Metal files and whose header files can be used both within your Swift code (via a `module.modulemap` file) and in your Metal code. See the `ExampleShaders` target in the `Package.swift` file.
 
-[^1]: As of Xcode 11.4 beta 3.
+[^1]: Prior to Swift Package Manager 5.3 it was impossible to process Metal files at all. Version 5.3 added the capability process resources. Somewhere between versions 5.3 and 5.7 Swift Package Manager gained the ability to transparently compile all Metal files in a package.
 
 ## Usage
 
