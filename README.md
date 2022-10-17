@@ -6,6 +6,14 @@ Swift Package Manager plug-in to compile Metal files that can be debugged in Xco
 
 Swift Package Manager now[^1] seems to compile all Metal files within a target into a `default.metallib`. Alas, this file cannot be debugged in Xcode Metal Debugger.
 
+> Unable to create shader debug session
+>
+> Source is unavailable
+>
+> Under the target's Build Settings, ensure the Metal Compiler Build Options produces debugging information and includes source code.
+>
+> If building with the 'metal' command line tool, include the options '-gline-tables-only' and '-frecord-sources'.
+
 ![Screenshot of Xcode failing to debug your metallib](Documentation/Screenshot%201-Thumbnail.png).
 
 This plug-in provides an alternative way to compile Metal files into a `metallib` that can be debugged.
@@ -43,4 +51,5 @@ BSD 3-clause. See [LICENSE.md](LICENSE.md).
 
 ## TODO
 
-- [ ] File feedback items for the limitations and issues above.
+- [ ] File and link to feedback items for the limitations and issues above.
+- [ ] More configuration options.
