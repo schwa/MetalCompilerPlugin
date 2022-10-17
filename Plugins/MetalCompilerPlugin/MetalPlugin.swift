@@ -16,7 +16,7 @@ struct MetalPlugin: BuildToolPlugin {
         return [
             .buildCommand(
                 displayName: "Test",
-                executable: try context.tool(named: "MetalCompiler").path,
+                executable: try context.tool(named: "MetalCompilerTool").path,
                 arguments: [
                     "--output", context.pluginWorkDirectory.appending(["debug.metallib"]).string,
                 ]

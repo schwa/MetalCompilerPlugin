@@ -14,18 +14,17 @@ let package = Package(
         .plugin(name: "MetalCompilerPlugin", targets: ["MetalCompilerPlugin"])
     ],
     dependencies: [
-        .package(url: "https://github.com/schwa/Everything", branch: "main"),
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0"),
     ],
     targets: [
         .plugin(name: "MetalCompilerPlugin", capability: .buildTool(), dependencies: ["MetalCompilerTool"]),
         .executableTarget(name: "MetalCompilerTool", dependencies: [
-            "Everything",
             .product(name: "ArgumentParser", package: "swift-argument-parser")
         ]),
-//        .testTarget(
-//            name: "RenderKitTests",
-//            dependencies: ["RenderKit"]
-//        )
+        .target(name: "ExampleShaders", plugins: ["MetalCompilerPlugin"]),
+        .testTarget(
+            name: "MetalCompilerPluginTests",
+            dependencies: ["ExampleShaders"]
+        )
     ]
 )

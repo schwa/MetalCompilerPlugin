@@ -1,11 +1,14 @@
 import XCTest
-@testable import MetalCompilerPlugin
+
+import Metal
 
 final class MetalCompilerPluginTests: XCTestCase {
     func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct
-        // results.
-        XCTAssertEqual(MetalCompilerPlugin().text, "Hello, World!")
+        let shadersBundleURL = Bundle(for: MetalCompilerPluginTests.self).resourceURL!.appending(path: "MetalCompilerPlugin_ExampleShaders.bundle")
+        let bundle = Bundle(url: shadersBundleURL)!
+        let libraryURL = bundle.url(forResource: "debug", withExtension: "metallib")!
+        let device = MTLCreateSystemDefaultDevice()!
+        let library = try device.makeLibrary(URL: libraryURL)
+        print(library)
     }
 }
