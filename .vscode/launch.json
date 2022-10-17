@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug MetalCompilerTool",
+            "program": "${workspaceFolder:MetalCompilerPlugin}/.build/debug/MetalCompilerTool",
+            "args": [],
+            "cwd": "${workspaceFolder:MetalCompilerPlugin}",
+            "preLaunchTask": "swift: Build Debug MetalCompilerTool"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Release MetalCompilerTool",
+            "program": "${workspaceFolder:MetalCompilerPlugin}/.build/release/MetalCompilerTool",
+            "args": [],
+            "cwd": "${workspaceFolder:MetalCompilerPlugin}",
+            "preLaunchTask": "swift: Build Release MetalCompilerTool"
+        }
+    ]
+}

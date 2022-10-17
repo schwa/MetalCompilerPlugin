@@ -11,7 +11,7 @@ let package = Package(
         .macCatalyst("16.0"),
     ],
     products: [
-        .plugin(name: "MetalCompilerPlugin", targets: ["MetalCompilerPlugin"])
+        .plugin(name: "MetalCompilerPlugin", targets: ["MetalCompilerPlugin"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0"),
@@ -19,12 +19,12 @@ let package = Package(
     targets: [
         .plugin(name: "MetalCompilerPlugin", capability: .buildTool(), dependencies: ["MetalCompilerTool"]),
         .executableTarget(name: "MetalCompilerTool", dependencies: [
-            .product(name: "ArgumentParser", package: "swift-argument-parser")
+            .product(name: "ArgumentParser", package: "swift-argument-parser"),
         ]),
         .target(name: "ExampleShaders", plugins: ["MetalCompilerPlugin"]),
         .testTarget(
             name: "MetalCompilerPluginTests",
             dependencies: ["ExampleShaders"]
-        )
+        ),
     ]
 )

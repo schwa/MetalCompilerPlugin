@@ -1,11 +1,10 @@
-import PackagePlugin
 import Foundation
 import os
+import PackagePlugin
 
 @main
 struct MetalPlugin: BuildToolPlugin {
     func createBuildCommands(context: PackagePlugin.PluginContext, target: PackagePlugin.Target) async throws -> [PackagePlugin.Command] {
-
         var paths: [Path] = []
         target.directory.walk { path in
             if path.pathExtension == "metal" {
@@ -20,14 +19,14 @@ struct MetalPlugin: BuildToolPlugin {
                 arguments: [
                     "--output", context.pluginWorkDirectory.appending(["debug.metallib"]).string,
                 ]
-                + paths.map { $0.string},
+                    + paths.map(\.string),
 
                 environment: [:],
                 inputFiles: paths,
                 outputFiles: [
-                    context.pluginWorkDirectory.appending(["debug.metallib"])
+                    context.pluginWorkDirectory.appending(["debug.metallib"]),
                 ]
-            )
+            ),
         ]
     }
 }

@@ -1,0 +1,4 @@
+steps:
+    - commands:
+          - swift build
+          - swift test --enable-code-coverage

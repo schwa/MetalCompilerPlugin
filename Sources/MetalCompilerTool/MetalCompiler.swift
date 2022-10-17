@@ -1,10 +1,9 @@
+import ArgumentParser
 import Foundation
 import os
-import ArgumentParser
 
 @main
 struct MetalCompilerTool: ParsableCommand {
-
     @Option(name: .shortAndLong)
     var output: String
 
@@ -17,13 +16,13 @@ struct MetalCompilerTool: ParsableCommand {
         p.arguments = [
             "metal",
         ]
-        + inputs
-        + [
-            "-o",
-            output,
-            "-gline-tables-only",
-            "-frecord-sources",
-        ]
+            + inputs
+            + [
+                "-o",
+                output,
+                "-gline-tables-only",
+                "-frecord-sources",
+            ]
         try p.run()
     }
 }
