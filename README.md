@@ -18,7 +18,7 @@ Swift Package Manager now[^1] seems to compile all Metal files within a target i
 
 This plug-in provides an alternative way to compile Metal files into a `metallib` that can be debugged.
 
-This project also shows how to create a "_pseudo-Metal target_" that can be used to contain your Metal files and whose header files can be used both within your Swift code (via a `module.modulemap` file) and in your Metal code. See the `ExampleShaders` target in the `Package.swift` file.
+This project also shows how to create a ["_Pure-Metal target_"](#puremetaltarget) that can be used to contain your Metal source code and header files.
 
 [^1]: Prior to Swift Package Manager 5.3 it was impossible to process Metal files at all. Version 5.3 added the capability process resources. Somewhere between versions 5.3 and 5.7 Swift Package Manager gained the ability to transparently compile all Metal files in a package.
 
@@ -44,6 +44,16 @@ Note the title of the output metal library file will be `debug.metallib` and wil
 The output metal library file will be `debug.metallib` and will live side-by-side with the `default.metallib` file. This is because of the `default.metallib` file is created by the Swift Package Manager and cannot be overridden.
 
 You will not be able to use `MTLDevice.makeDefaultLibrary()` to load the `debug.metallib` file. Instead, you will need to use `MTLDevice.makeLibrary(url:)` to load the `debug.metallib` file. See the unit tests for an example.
+
+## Pure-Metal Targets
+
+A "Pure-Metal" target is a target that contains only Metal source code and header files. This is useful for projects that contain a lot of Metal code and want to keep it separate from the rest of the project.
+
+This is also useful so that Metal and Swift can share types defined in common header files. For example, a Vertex or Uniforms struct defined in a header file can be used by both Metal and Swift code.
+
+Sharing of Metal types with Swift prevents duplication of types and makes sure that your types have a consistent layout and packing across Metal and Swift.
+
+See the `ExampleShaders` target in the `Package.swift` file. The "Pure-Metal" target must not contain any Swift files. It should contain your Metal source code and header files (contained in an included folder). It should also contain a `Module.map` file that allows Swift to import the header files.
 
 ## License
 
