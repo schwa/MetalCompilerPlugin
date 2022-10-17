@@ -20,7 +20,7 @@ This plug-in provides an alternative way to compile Metal files into a `metallib
 
 This project also shows how to create a ["_Pure-Metal target_"](#pure-metal-targets) that can be used to contain your Metal source code and header files.
 
-[^1]: Prior to Swift Package Manager 5.3 it was impossible to process Metal files at all. Version 5.3 added the capability process resources. Somewhere between versions 5.3 and 5.7 Swift Package Manager gained the ability to transparently compile all Metal files in a package.
+[^1]: Prior to Swift Package Manager 5.3 it was impossible to process Metal files at all. Version 5.3 added the capability to process resources, including Metal files. Somewhere between versions 5.3 and 5.7 Swift Package Manager gained the ability to transparently compile all Metal files in a package.
 
 ## Usage
 
