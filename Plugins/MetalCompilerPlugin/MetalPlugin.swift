@@ -11,7 +11,7 @@ struct MetalPlugin: BuildToolPlugin {
                 paths.append(path)
             }
         }
-
+        Diagnostics.remark("Running...")
         return [
             .buildCommand(
                 displayName: "Test",
