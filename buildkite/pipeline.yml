@@ -2,4 +2,4 @@ steps:
     - commands:
           - swift build
           # TODO: Re-enable this when we figure out why unit tests only with in xcode.
-          #- swift test --enable-code-coverage
+          #- swift test
