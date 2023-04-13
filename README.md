@@ -33,7 +33,9 @@ For example:
         .package(url: "https://github.com/schwa/MetalCompilerPlugin", branch: "main"),
     ],
     targets: [
-        .target(name: "MyExampleShaders", plugins: ["MetalCompilerPlugin"]),
+        .target(name: "MyExampleShaders", plugins: [
+            .plugin(name: "MetalCompilerPlugin", package: "MetalCompilerPlugin")
+        ]),
     ]
 ```
 
