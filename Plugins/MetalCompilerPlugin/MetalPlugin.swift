@@ -14,7 +14,7 @@ struct MetalPlugin: BuildToolPlugin {
         Diagnostics.remark("Running...")
         return [
             .buildCommand(
-                displayName: "Test",
+                displayName: "MetalCompilerTool",
                 executable: try context.tool(named: "MetalCompilerTool").path,
                 arguments: [
                     "--output", context.pluginWorkDirectory.appending(["debug.metallib"]).string,
