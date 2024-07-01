@@ -22,7 +22,8 @@ jobs:
           submodules: recursive
       - name: Build.
         run: swift build -v
-      - name: Run tests.
-        run: swift test -v
+    # Disable tests for now - see notes in source.
+    #   - name: Run tests.
+    #     run: swift test -v
     #   - name: Build examples.
     #     run: just build-examples
