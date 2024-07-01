@@ -4,8 +4,11 @@ import os
 
 @main
 struct MetalCompilerTool: ParsableCommand {
-    @Option(name: .shortAndLong)
+    @Option(name: .long)
     var output: String
+
+    @Option(name: .long)
+    var cache: String
 
     @Argument
     var inputs: [String]
@@ -23,6 +26,7 @@ struct MetalCompilerTool: ParsableCommand {
                 "-gline-tables-only",
                 "-frecord-sources",
             ]
+            + ["-fmodules-cache-path=\(cache)"]
         try p.run()
     }
 }
