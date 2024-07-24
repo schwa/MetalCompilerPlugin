@@ -25,6 +25,7 @@ struct MetalCompilerTool: ParsableCommand {
                 output,
                 "-gline-tables-only",
                 "-frecord-sources",
+                "-fmetal-enable-logging"
             ]
             + ["-fmodules-cache-path=\(cache)"]
         try p.run()
