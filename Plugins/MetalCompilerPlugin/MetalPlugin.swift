@@ -18,8 +18,9 @@ struct MetalPlugin: BuildToolPlugin {
                 executable: try context.tool(named: "MetalCompilerTool").path,
                 arguments: [
                     "--output", context.pluginWorkDirectory.appending(["debug.metallib"]).string,
+                    "--cache", context.pluginWorkDirectory.appending(["cache"]).string,
                 ]
-                    + paths.map(\.string),
+                + paths.map(\.string),
 
                 environment: [:],
                 inputFiles: paths,
