@@ -1,5 +1,0 @@
-steps:
-    - commands:
-          - swift build
-          # TODO: Re-enable this when we figure out why unit tests only work with in xcode.
-          #- swift test
