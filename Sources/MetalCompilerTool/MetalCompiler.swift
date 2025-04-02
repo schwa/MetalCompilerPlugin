@@ -16,6 +16,7 @@ struct MetalCompilerTool: ParsableCommand {
     mutating func run() throws {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+        p.environment["TMPDIR"] = "/private/tmp"
         p.arguments = [
             "metal",
         ]
