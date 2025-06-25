@@ -7,16 +7,12 @@ let package = Package(
     name: "MetalCompilerPlugin",
     products: [
         .plugin(name: "MetalCompilerPlugin", targets: ["MetalCompilerPlugin"]),
-        .executable(name: "MetalCompilerTool", targets: ["MetalCompilerTool"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0"),
     ],
     targets: [
-        .plugin(name: "MetalCompilerPlugin", capability: .buildTool(), dependencies: ["MetalCompilerTool"]),
-        .executableTarget(name: "MetalCompilerTool", dependencies: [
-            .product(name: "ArgumentParser", package: "swift-argument-parser"),
-        ]),
+        .plugin(name: "MetalCompilerPlugin", capability: .buildTool()),
         .target(name: "ExampleShaders", plugins: ["MetalCompilerPlugin"]),
         .testTarget(
             name: "MetalCompilerPluginTests",
