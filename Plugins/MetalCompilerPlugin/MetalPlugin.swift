@@ -40,20 +40,6 @@ struct MetalCompiler: DecodableWithConfiguration {
 
     var command: PackagePlugin.Command
 
-    init(context: PackagePlugin.PluginContext, target: PackagePlugin.Target) {
-        let cache = context.pluginWorkDirectory.appending(["cache"]).string
-        let inputs = target.findFiles(withPathExtension: "metal")
-        let output = context.pluginWorkDirectory.appending(["debug.metallib"])
-        command = .buildCommand(
-            displayName: "metal",
-            executable: Path("/usr/bin/xcrun"),
-            arguments: ["metal", "-gline-tables-only", "-frecord-sources", "-fmodules-cache-path=\(cache)", "-o", output.string],
-            environment: ["TMPDIR":"/private/tmp"],
-            inputFiles: inputs,
-            outputFiles: [output]
-        )
-    }
-
     init(from decoder: any Decoder, configuration: (context: PackagePlugin.PluginContext, target: PackagePlugin.Target)) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let (context, target) = configuration
@@ -70,18 +56,18 @@ struct MetalCompiler: DecodableWithConfiguration {
             }
         }
 
-        let executable: Path
+        let executable: String
         var arguments: [String]
 
         let useXcrun = try container.decodeIfPresent(Bool.self, forKey: .useXcrun) ?? true
         if useXcrun {
-            executable = Path("/usr/bin/xcrun")
+            executable = "/usr/bin/xcrun"
             arguments = ["metal"]
             logger?("Using 'xcrun' to find the metal compiler.")
         }
         else {
             let metalPath = try container.decode(String.self, forKey: .metalPath)
-            executable = Path(metalPath)
+            executable = metalPath
             arguments = []
             logger?("Using metal compiler at '\(metalPath)'.")
         }
@@ -107,13 +93,13 @@ struct MetalCompiler: DecodableWithConfiguration {
 
         // Input (sources)
         let scanInputsInDirectory = try container.decodeIfPresent(Bool.self, forKey: .scanInputsInDirectory) ?? true
-        var inputs: [Path] = []
+        var inputs: [String] = []
         if scanInputsInDirectory {
             inputs += target.findFiles(withPathExtension: "metal")
         }
-        inputs += (try container.decodeIfPresent([String].self, forKey: .inputs) ?? []).map { Path($0) }
-        arguments += inputs.map(\.string)
-        logger?("Using input files: \(inputs.map(\.string).joined(separator: ", "))")
+        inputs += (try container.decodeIfPresent([String].self, forKey: .inputs) ?? [])
+        arguments += inputs
+        logger?("Using input files: \(inputs.joined(separator: ", "))")
 
         let outputName = try container.decodeIfPresent(String.self, forKey: .output) ?? "debug.metallib"
         logger?("Using output file: \(outputName)")
@@ -133,31 +119,30 @@ struct MetalCompiler: DecodableWithConfiguration {
 
         command = .buildCommand(
             displayName: "metal",
-            executable: executable,
+            executable: Path(executable),
             arguments: arguments,
             environment: environment,
-            inputFiles: inputs,
+            inputFiles: inputs.map { Path($0) },
             outputFiles: [output]
         )
     }
 }
 
 extension PackagePlugin.Target {
-    func findFiles(withPathExtension extension: String) -> [Path] {
+    func findFiles(withPathExtension extension: String) -> [String] {
         let errorHandler = { (_: URL, _: Swift.Error) -> Bool in
             true
         }
         guard let enumerator = FileManager().enumerator(at: directory.url, includingPropertiesForKeys: nil, options: [], errorHandler: errorHandler) else {
             fatalError()
         }
-        var paths: [Path] = []
+        var paths: [String] = []
         for url in enumerator {
             guard let url = url as? URL else {
                 fatalError()
             }
             if url.pathExtension == `extension` {
-                let path = Path(url.path)
-                paths.append(path)
+                paths.append(url.path)
             }
         }
         return paths
