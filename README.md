@@ -1,6 +1,6 @@
 # MetalCompilerPlugin
 
-Swift Package Manager plug-in to compile Metal files that can be debugged in Xcode Metal Debugger.
+A Swift Package Manager plugin to compile Metal files that can be debugged in Xcode Metal Debugger.
 
 ## Description
 
@@ -24,7 +24,7 @@ This project also shows how to create a ["_Pure-Metal target_"](#pure-metal-targ
 
 ## Usage
 
-In your `Package.swift` file, add  `MetalCompilerPlugin` as a dependency. And add the `MetalCompilerPlugin` to your target's `plugins` array.
+In your `Package.swift` file, add `MetalCompilerPlugin` as a dependency. And add the `MetalCompilerPlugin` to your target's `plugins` array.
 
 For example:
 
@@ -57,6 +57,71 @@ Direct sharing of Metal types with Swift prevents duplication of types and makes
 
 See the `ExampleShaders` target in the `Package.swift` file. The "Pure-Metal" target must not contain any Swift files. It should contain your Metal source code and header files (contained in an included folder). It should also contain a `Module.map` file that allows Swift to import the header files.
 
+## Configuration
+
+The plugin can be configured by placing a `metal-compiler-plugin.json` or `.metal-compiler-plugin.json` file in your target's directory. If no configuration file is found, the plugin will use default settings.
+
+### Configuration Options
+
+All configuration options are optional. Without any configuration file, the plugin will use the default settings (add debug flags, use xcrun, use a custom TMPDIR, do not enable logging).
+
+```json
+{
+    "xcrun": true, // Use xcrun to find the metal compiler
+    "metal": "/path/to/metal", // Direct path to the metal compiler executable (required if xcrun is false)
+    "find-inputs": true, // Find all .metal files in the target directory
+    "inputs": ["additional/file.metal"], // Additional input files to compile
+    "output": "debug.metallib", // Name of the output metallib file
+    "cache": "/path/to/cache", // Path to the modules cache directory - if not specified, defaults to the plugin work directory
+    "flags": ["-gline-tables-only", "-frecord-sources"], // Compiler flags to pass to the metal compiler
+    "plugin-logging": false, // If true, enables verbose logging from the plugin itself for debugging purposes
+    "metal-enable-logging": false, // If true, enables metal compiler logging by adding the -fmetal-enable-logging flag
+    "env": {
+        "TMPDIR": "/private/tmp" // Additional environment variables to set when running the metal compiler
+    }
+}
+```
+
+#### Option Descriptions
+
+- **`xcrun`** (boolean, default: `true`): Whether to use `xcrun` to find the metal compiler. When `true`, uses `/usr/bin/xcrun metal`. When `false`, you must specify the `metal` path.
+
+- **`metal`** (string, required when `xcrun` is `false`): Direct path to the metal compiler executable.
+
+- **`find-inputs`** (boolean, default: `true`): Whether to automatically scan the target directory for `.metal` files. When `true`, all `.metal` files in the target are included.
+
+- **`inputs`** (array of strings, default: `[]`): Additional input files to compile, in addition to those found by scanning (if enabled).
+
+- **`output`** (string, default: `"debug.metallib"`): Name of the output metallib file.
+
+- **`cache`** (string, default: plugin work directory): Path to the modules cache directory.
+
+- **`flags`** (array of strings, default: `["-gline-tables-only", "-frecord-sources"]`): Compiler flags to pass to the metal compiler. The default flags enable debugging in Xcode Metal Debugger.
+
+- **`plugin-logging`** (boolean, default: `false`): Enable verbose logging from the plugin itself for debugging purposes.
+
+- **`metal-enable-logging`** (boolean, default: `false`): Enable metal compiler logging by adding the `-fmetal-enable-logging` flag.
+
+- **`env`** (object, default: `{}`): Additional environment variables to set when running the metal compiler.
+
+### Example Configuration
+
+For basic usage with debugging enabled:
+
+```json
+{
+    "plugin-logging": true
+}
+```
+
+For custom compiler flags:
+
+```json
+{
+    "flags": ["-gline-tables-only", "-frecord-sources", "-O2"]
+}
+```
+
 ## License
 
 BSD 3-clause. See [LICENSE.md](LICENSE.md).
@@ -64,5 +129,5 @@ BSD 3-clause. See [LICENSE.md](LICENSE.md).
 ## TODO
 
 - [ ] File and link to feedback items for the limitations and issues above.
-- [ ] More configuration options.
-- [ ] Searching for .metallib works in Xcode Unit Tests but fails under `swift test`. Why?
+- [X] More configuration options.
+- [ ] Searching for the metallib works in Xcode Unit Tests but fails under `swift test`. Why?
