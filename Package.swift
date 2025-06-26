@@ -13,7 +13,8 @@ let package = Package(
         .target(name: "ExampleShaders", plugins: ["MetalCompilerPlugin"]),
         .testTarget(
             name: "MetalCompilerPluginTests",
-            dependencies: ["ExampleShaders"]
+            dependencies: ["ExampleShaders"],
+            resources: [.copy("Empty.txt")]
         ),
     ]
 )
