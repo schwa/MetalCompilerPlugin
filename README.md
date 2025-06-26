@@ -67,17 +67,17 @@ All configuration options are optional. Without any configuration file, the plug
 
 ```json
 {
-    "xcrun": true, // Use xcrun to find the metal compiler
-    "metal": "/path/to/metal", // Direct path to the metal compiler executable (required if xcrun is false)
-    "find-inputs": true, // Find all .metal files in the target directory
-    "inputs": ["additional/file.metal"], // Additional input files to compile
-    "output": "debug.metallib", // Name of the output metallib file
-    "cache": "/path/to/cache", // Path to the modules cache directory - if not specified, defaults to the plugin work directory
-    "flags": ["-gline-tables-only", "-frecord-sources"], // Compiler flags to pass to the metal compiler
-    "plugin-logging": false, // If true, enables verbose logging from the plugin itself for debugging purposes
-    "metal-enable-logging": false, // If true, enables metal compiler logging by adding the -fmetal-enable-logging flag
+    "xcrun": true,
+    "metal": "/path/to/metal",
+    "find-inputs": true,
+    "inputs": ["additional/file.metal"],
+    "output": "debug.metallib",
+    "cache": "/path/to/cache",
+    "flags": ["-gline-tables-only", "-frecord-sources"],
+    "plugin-logging": false,
+    "metal-enable-logging": false,
     "env": {
-        "TMPDIR": "/private/tmp" // Additional environment variables to set when running the metal compiler
+        "TMPDIR": "/private/tmp"
     }
 }
 ```
