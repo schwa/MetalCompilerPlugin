@@ -1,29 +1,36 @@
 import Foundation
 import os
-import PackagePlugin
+@preconcurrency import PackagePlugin
+
+extension CodingUserInfoKey {
+    static let context = CodingUserInfoKey(rawValue: "context")!
+    static let target = CodingUserInfoKey(rawValue: "target")!
+}
 
 @main
 struct MetalPlugin: BuildToolPlugin {
     func createBuildCommands(context: PackagePlugin.PluginContext, target: PackagePlugin.Target) async throws -> [PackagePlugin.Command] {
         let decoder = JSONDecoder()
         decoder.allowsJSON5 = true
+        decoder.userInfo[.context] = context
+        decoder.userInfo[.target] = target
         let metalCompiler: MetalCompiler
         if let data = try? Data(contentsOf: target.directory.appending(["metal-compiler-plugin.json"]).url) {
             Diagnostics.remark("Using configuration from 'metal-compiler-plugin.json'")
-            metalCompiler = try decoder.decode(MetalCompiler.self, from: data, configuration: (context, target))
+            metalCompiler = try decoder.decode(MetalCompiler.self, from: data)
         } else if let data = try? Data(contentsOf: target.directory.appending([".metal-compiler-plugin.json"]).url) {
             Diagnostics.remark("Using configuration from '.metal-compiler-plugin.json'")
-            metalCompiler = try decoder.decode(MetalCompiler.self, from: data, configuration: (context, target))
+            metalCompiler = try decoder.decode(MetalCompiler.self, from: data)
         } else {
             Diagnostics.remark("Using default configuration for MetalCompiler")
             let data = "{}".data(using: .utf8)!
-            metalCompiler = try decoder.decode(MetalCompiler.self, from: data, configuration: (context, target))
+            metalCompiler = try decoder.decode(MetalCompiler.self, from: data)
         }
         return [metalCompiler.command]
     }
 }
 
-struct MetalCompiler: DecodableWithConfiguration {
+struct MetalCompiler: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case useXcrun = "xcrun"
@@ -40,9 +47,11 @@ struct MetalCompiler: DecodableWithConfiguration {
 
     var command: PackagePlugin.Command
 
-    init(from decoder: any Decoder, configuration: (context: PackagePlugin.PluginContext, target: PackagePlugin.Target)) throws {
+    init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let (context, target) = configuration
+        let context = decoder.userInfo[.context] as! PackagePlugin.PluginContext
+        let target = decoder.userInfo[.target] as! PackagePlugin.Target
+
 
         let pluginLogging = try container.decodeIfPresent(Bool.self, forKey: .pluginLogging) ?? false
         let logger: ((String) -> Void)? = pluginLogging ? { (string: String) in
