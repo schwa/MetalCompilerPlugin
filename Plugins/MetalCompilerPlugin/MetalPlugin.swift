@@ -15,8 +15,9 @@ struct MetalPlugin: BuildToolPlugin {
             Diagnostics.remark("Using configuration from '.metal-compiler-plugin.json'")
             metalCompiler = try decoder.decode(MetalCompiler.self, from: data, configuration: (context, target))
         } else {
-            metalCompiler = MetalCompiler(context: context, target: target)
             Diagnostics.remark("Using default configuration for MetalCompiler")
+            let data = "{}".data(using: .utf8)!
+            metalCompiler = try decoder.decode(MetalCompiler.self, from: data, configuration: (context, target))
         }
         return [metalCompiler.command]
     }
@@ -33,6 +34,8 @@ struct MetalCompiler: DecodableWithConfiguration {
         case cache = "cache"
         case extraFlags = "flags"
         case pluginLogging = "plugin-logging"
+        case metalEnableLogging = "metal-enable-logging"
+        case extraEnvironment = "env"
     }
 
     var command: PackagePlugin.Command
@@ -45,7 +48,7 @@ struct MetalCompiler: DecodableWithConfiguration {
             displayName: "metal",
             executable: Path("/usr/bin/xcrun"),
             arguments: ["metal", "-gline-tables-only", "-frecord-sources", "-fmodules-cache-path=\(cache)", "-o", output.string],
-            environment: [:],
+            environment: ["TMPDIR":"/private/tmp"],
             inputFiles: inputs,
             outputFiles: [output]
         )
@@ -61,11 +64,11 @@ struct MetalCompiler: DecodableWithConfiguration {
         } : nil
 
         if pluginLogging {
+            logger?("Input environment:")
             for (key, value) in ProcessInfo.processInfo.environment.sorted(by: { $0.key < $1.key }) {
-                logger?("Environment variable \(key): \(value)")
+                logger?("\t\(key): \(value)")
             }
         }
-
 
         let executable: Path
         var arguments: [String]
@@ -92,6 +95,11 @@ struct MetalCompiler: DecodableWithConfiguration {
             logger?("Using default flags: -gline-tables-only -frecord-sources")
         }
 
+        if let metalEnableLogging = try container.decodeIfPresent(Bool.self, forKey: .metalEnableLogging), metalEnableLogging {
+            arguments += ["-fmetal-enable-logging"]
+            logger?("Enabling metal logging.")
+        }
+
         // Cache Directory
         let cache = try container.decodeIfPresent(String.self, forKey: .cache) ?? context.pluginWorkDirectory.appending(["cache"]).string
         arguments += [ "-fmodules-cache-path=\(cache)" ]
@@ -112,11 +120,22 @@ struct MetalCompiler: DecodableWithConfiguration {
         let output = context.pluginWorkDirectory.appending([outputName])
         arguments += ["-o", output.string]
 
+        var environment: [String: String] = [:]
+        environment["TMPDIR"] = "/private/tmp"
+        logger?("Using custom temporary directory: '/private/tmp'")
+
+        if pluginLogging {
+            logger?("Build command environment variables:")
+            for (key, value) in environment.sorted(by: { $0.key < $1.key }) {
+                logger?("\t\(key): \(value)")
+            }
+        }
+
         command = .buildCommand(
             displayName: "metal",
             executable: executable,
             arguments: arguments,
-            environment: [:],
+            environment: environment,
             inputFiles: inputs,
             outputFiles: [output]
         )
@@ -144,7 +163,6 @@ extension PackagePlugin.Target {
         return paths
     }
 }
-
 
 extension Path {
     var url: URL {

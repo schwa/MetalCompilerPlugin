@@ -8,9 +8,6 @@ let package = Package(
     products: [
         .plugin(name: "MetalCompilerPlugin", targets: ["MetalCompilerPlugin"]),
     ],
-    dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0"),
-    ],
     targets: [
         .plugin(name: "MetalCompilerPlugin", capability: .buildTool()),
         .target(name: "ExampleShaders", plugins: ["MetalCompilerPlugin"]),
