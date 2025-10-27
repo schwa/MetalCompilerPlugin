@@ -2,18 +2,12 @@ import Foundation
 import os
 @preconcurrency import PackagePlugin
 
-extension CodingUserInfoKey {
-    static let context = CodingUserInfoKey(rawValue: "context")!
-    static let target = CodingUserInfoKey(rawValue: "target")!
-}
-
 @main
 struct MetalPlugin: BuildToolPlugin {
     func createBuildCommands(context: PackagePlugin.PluginContext, target: PackagePlugin.Target) async throws -> [PackagePlugin.Command] {
         let decoder = JSONDecoder()
         decoder.allowsJSON5 = true
-        decoder.userInfo[.context] = context
-        decoder.userInfo[.target] = target
+
         let metalCompiler: MetalCompiler
         if let data = try? Data(contentsOf: target.directory.appending(["metal-compiler-plugin.json"]).url) {
             Diagnostics.remark("Using configuration from 'metal-compiler-plugin.json'")
@@ -26,39 +20,67 @@ struct MetalPlugin: BuildToolPlugin {
             let data = "{}".data(using: .utf8)!
             metalCompiler = try decoder.decode(MetalCompiler.self, from: data)
         }
-        return [metalCompiler.command]
+
+        let command = metalCompiler.buildCommand(context: context, target: target)
+        return [command]
     }
 }
 
 struct MetalCompiler: Decodable {
 
-    enum CodingKeys: String, CodingKey {
-        case useXcrun = "xcrun"
-        case metalPath = "metal"
-        case scanInputsInDirectory = "find-inputs"
-        case inputs = "inputs"
-        case output = "output"
-        case cache = "cache"
-        case extraFlags = "flags"
-        case pluginLogging = "plugin-logging"
-        case metalEnableLogging = "metal-enable-logging"
-        case extraEnvironment = "env"
+    struct Configuration: Decodable {
+        enum CodingKeys: String, CodingKey {
+            case useXcrun = "xcrun"
+            case metalPath = "metal"
+            case scanInputsInDirectory = "find-inputs"
+            case inputs = "inputs"
+            case output = "output"
+            case cache = "cache"
+            case extraFlags = "flags"
+            case pluginLogging = "plugin-logging"
+            case metalEnableLogging = "metal-enable-logging"
+            case extraEnvironment = "env"
+        }
+
+        let useXcrun: Bool
+        let metalPath: String?
+        let scanInputsInDirectory: Bool
+        let inputs: [String]
+        let output: String
+        let cache: String?
+        let extraFlags: [String]?
+        let pluginLogging: Bool
+        let metalEnableLogging: Bool
+        let extraEnvironment: [String: String]?
+
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+
+            useXcrun = try container.decodeIfPresent(Bool.self, forKey: .useXcrun) ?? true
+            metalPath = try container.decodeIfPresent(String.self, forKey: .metalPath)
+            scanInputsInDirectory = try container.decodeIfPresent(Bool.self, forKey: .scanInputsInDirectory) ?? true
+            inputs = try container.decodeIfPresent([String].self, forKey: .inputs) ?? []
+            output = try container.decodeIfPresent(String.self, forKey: .output) ?? "debug.metallib"
+            cache = try container.decodeIfPresent(String.self, forKey: .cache)
+            extraFlags = try container.decodeIfPresent([String].self, forKey: .extraFlags)
+            pluginLogging = try container.decodeIfPresent(Bool.self, forKey: .pluginLogging) ?? false
+            metalEnableLogging = try container.decodeIfPresent(Bool.self, forKey: .metalEnableLogging) ?? false
+            extraEnvironment = try container.decodeIfPresent([String: String].self, forKey: .extraEnvironment)
+        }
     }
 
-    var command: PackagePlugin.Command
+    let config: Configuration
 
     init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let context = decoder.userInfo[.context] as! PackagePlugin.PluginContext
-        let target = decoder.userInfo[.target] as! PackagePlugin.Target
+        config = try Configuration(from: decoder)
+    }
 
-
-        let pluginLogging = try container.decodeIfPresent(Bool.self, forKey: .pluginLogging) ?? false
-        let logger: ((String) -> Void)? = pluginLogging ? { (string: String) in
+    func buildCommand(context: PackagePlugin.PluginContext, target: PackagePlugin.Target) -> PackagePlugin.Command {
+        let logger: ((String) -> Void)? = config.pluginLogging ? { (string: String) in
             Diagnostics.remark(string)
         } : nil
 
-        if pluginLogging {
+        if config.pluginLogging {
             logger?("Input environment:")
             for (key, value) in ProcessInfo.processInfo.environment.sorted(by: { $0.key < $1.key }) {
                 logger?("\t\(key): \(value)")
@@ -68,20 +90,21 @@ struct MetalCompiler: Decodable {
         let executable: String
         var arguments: [String]
 
-        let useXcrun = try container.decodeIfPresent(Bool.self, forKey: .useXcrun) ?? true
-        if useXcrun {
+        if config.useXcrun {
             executable = "/usr/bin/xcrun"
             arguments = ["metal"]
             logger?("Using 'xcrun' to find the metal compiler.")
         }
         else {
-            let metalPath = try container.decode(String.self, forKey: .metalPath)
+            guard let metalPath = config.metalPath else {
+                fatalError("metalPath is required when xcrun is disabled")
+            }
             executable = metalPath
             arguments = []
             logger?("Using metal compiler at '\(metalPath)'.")
         }
 
-        if let extraFlags = try container.decodeIfPresent([String].self, forKey: .extraFlags) {
+        if let extraFlags = config.extraFlags {
             arguments += extraFlags
             logger?("Using extra flags: \(extraFlags.joined(separator: " "))")
         }
@@ -90,43 +113,41 @@ struct MetalCompiler: Decodable {
             logger?("Using default flags: -gline-tables-only -frecord-sources")
         }
 
-        if let metalEnableLogging = try container.decodeIfPresent(Bool.self, forKey: .metalEnableLogging), metalEnableLogging {
+        if config.metalEnableLogging {
             arguments += ["-fmetal-enable-logging"]
             logger?("Enabling metal logging.")
         }
 
         // Cache Directory
-        let cache = try container.decodeIfPresent(String.self, forKey: .cache) ?? context.pluginWorkDirectory.appending(["cache"]).string
+        let cache = config.cache ?? context.pluginWorkDirectory.appending(["cache"]).string
         arguments += [ "-fmodules-cache-path=\(cache)" ]
         logger?("Using cache directory: \(cache)")
 
         // Input (sources)
-        let scanInputsInDirectory = try container.decodeIfPresent(Bool.self, forKey: .scanInputsInDirectory) ?? true
         var inputs: [String] = []
-        if scanInputsInDirectory {
+        if config.scanInputsInDirectory {
             inputs += target.findFiles(withPathExtension: "metal")
         }
-        inputs += (try container.decodeIfPresent([String].self, forKey: .inputs) ?? [])
+        inputs += config.inputs
         arguments += inputs
         logger?("Using input files: \(inputs.joined(separator: ", "))")
 
-        let outputName = try container.decodeIfPresent(String.self, forKey: .output) ?? "debug.metallib"
-        logger?("Using output file: \(outputName)")
-        let output = context.pluginWorkDirectory.appending([outputName])
+        logger?("Using output file: \(config.output)")
+        let output = context.pluginWorkDirectory.appending([config.output])
         arguments += ["-o", output.string]
 
         var environment: [String: String] = [:]
         environment["TMPDIR"] = "/private/tmp"
         logger?("Using custom temporary directory: '/private/tmp'")
 
-        if pluginLogging {
+        if config.pluginLogging {
             logger?("Build command environment variables:")
             for (key, value) in environment.sorted(by: { $0.key < $1.key }) {
                 logger?("\t\(key): \(value)")
             }
         }
 
-        command = .buildCommand(
+        return .buildCommand(
             displayName: "metal",
             executable: Path(executable),
             arguments: arguments,
