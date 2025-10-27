@@ -1,4 +1,0 @@
-module Shaders {
-    header "ExampleShaders.h"
-    export *
-}

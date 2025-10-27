@@ -33,25 +33,29 @@ struct MetalCompiler: Decodable {
             case useXcrun = "xcrun"
             case metalPath = "metal"
             case scanInputsInDirectory = "find-inputs"
+            case includeDependencies = "include-dependencies"
             case inputs = "inputs"
             case output = "output"
             case cache = "cache"
             case extraFlags = "flags"
             case pluginLogging = "plugin-logging"
+            case verboseLogging = "verbose-logging"
             case metalEnableLogging = "metal-enable-logging"
             case extraEnvironment = "env"
         }
 
-        let useXcrun: Bool
-        let metalPath: String?
-        let scanInputsInDirectory: Bool
-        let inputs: [String]
-        let output: String
-        let cache: String?
-        let extraFlags: [String]?
-        let pluginLogging: Bool
-        let metalEnableLogging: Bool
-        let extraEnvironment: [String: String]?
+        var useXcrun: Bool = true
+        var metalPath: String?
+        var scanInputsInDirectory: Bool = true
+        var includeDependencies: Bool = false
+        var inputs: [String]
+        var output: String = "debug.metallib"
+        var cache: String?
+        var extraFlags: [String]?
+        var pluginLogging: Bool = false
+        var verboseLogging: Bool = false
+        var metalEnableLogging: Bool = false
+        var extraEnvironment: [String: String]?
 
         init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -59,11 +63,13 @@ struct MetalCompiler: Decodable {
             useXcrun = try container.decodeIfPresent(Bool.self, forKey: .useXcrun) ?? true
             metalPath = try container.decodeIfPresent(String.self, forKey: .metalPath)
             scanInputsInDirectory = try container.decodeIfPresent(Bool.self, forKey: .scanInputsInDirectory) ?? true
+            includeDependencies = try container.decodeIfPresent(Bool.self, forKey: .includeDependencies) ?? false
             inputs = try container.decodeIfPresent([String].self, forKey: .inputs) ?? []
             output = try container.decodeIfPresent(String.self, forKey: .output) ?? "debug.metallib"
             cache = try container.decodeIfPresent(String.self, forKey: .cache)
             extraFlags = try container.decodeIfPresent([String].self, forKey: .extraFlags)
             pluginLogging = try container.decodeIfPresent(Bool.self, forKey: .pluginLogging) ?? false
+            verboseLogging = try container.decodeIfPresent(Bool.self, forKey: .verboseLogging) ?? false
             metalEnableLogging = try container.decodeIfPresent(Bool.self, forKey: .metalEnableLogging) ?? false
             extraEnvironment = try container.decodeIfPresent([String: String].self, forKey: .extraEnvironment)
         }
@@ -80,10 +86,14 @@ struct MetalCompiler: Decodable {
             Diagnostics.remark(string)
         } : nil
 
-        if config.pluginLogging {
-            logger?("Input environment:")
+        let verbose: ((String) -> Void)? = config.pluginLogging && config.verboseLogging ? { (string: String) in
+            Diagnostics.remark(string)
+        } : nil
+
+        verbose?("Input environment:")
+        if config.pluginLogging && config.verboseLogging {
             for (key, value) in ProcessInfo.processInfo.environment.sorted(by: { $0.key < $1.key }) {
-                logger?("\t\(key): \(value)")
+                verbose?("\t\(key): \(value)")
             }
         }
 
@@ -93,7 +103,7 @@ struct MetalCompiler: Decodable {
         if config.useXcrun {
             executable = "/usr/bin/xcrun"
             arguments = ["metal"]
-            logger?("Using 'xcrun' to find the metal compiler.")
+            logger?("Using xcrun to find metal compiler")
         }
         else {
             guard let metalPath = config.metalPath else {
@@ -101,27 +111,43 @@ struct MetalCompiler: Decodable {
             }
             executable = metalPath
             arguments = []
-            logger?("Using metal compiler at '\(metalPath)'.")
+            logger?("Using metal compiler at '\(metalPath)'")
         }
 
         if let extraFlags = config.extraFlags {
             arguments += extraFlags
-            logger?("Using extra flags: \(extraFlags.joined(separator: " "))")
+            verbose?("Extra flags: \(extraFlags.joined(separator: " "))")
         }
         else {
             arguments += ["-gline-tables-only", "-frecord-sources"]
-            logger?("Using default flags: -gline-tables-only -frecord-sources")
+            verbose?("Default flags: -gline-tables-only -frecord-sources")
         }
 
         if config.metalEnableLogging {
             arguments += ["-fmetal-enable-logging"]
-            logger?("Enabling metal logging.")
+            logger?("Metal logging enabled")
         }
 
         // Cache Directory
         let cache = config.cache ?? context.pluginWorkDirectory.appending(["cache"]).string
         arguments += [ "-fmodules-cache-path=\(cache)" ]
-        logger?("Using cache directory: \(cache)")
+        verbose?("Cache directory: \(cache)")
+
+        // Dependencies
+        if config.includeDependencies {
+            logger?("Including \(target.dependencies.count) dependency include path(s)")
+            for dependency: TargetDependency in target.dependencies {
+                switch dependency {
+                case .product:
+                    Diagnostics.error("Product dependencies are not supported for include paths in MetalCompilerPlugin.")
+                case .target(let target):
+                    verbose?("  -I \(target.directory.string)")
+                    arguments += ["-I", target.directory.string]
+                @unknown default:
+                    Diagnostics.error("Unknown dependency type in MetalCompilerPlugin.")
+                }
+            }
+        }
 
         // Input (sources)
         var inputs: [String] = []
@@ -130,22 +156,28 @@ struct MetalCompiler: Decodable {
         }
         inputs += config.inputs
         arguments += inputs
-        logger?("Using input files: \(inputs.joined(separator: ", "))")
+        logger?("Compiling \(inputs.count) input file(s)")
+        verbose?("Input files: \(inputs.joined(separator: ", "))")
 
-        logger?("Using output file: \(config.output)")
+        logger?("Output: \(config.output)")
         let output = context.pluginWorkDirectory.appending([config.output])
         arguments += ["-o", output.string]
 
         var environment: [String: String] = [:]
         environment["TMPDIR"] = "/private/tmp"
-        logger?("Using custom temporary directory: '/private/tmp'")
+        verbose?("Custom TMPDIR: /private/tmp")
 
-        if config.pluginLogging {
-            logger?("Build command environment variables:")
+        arguments += ["-DMETAL"]
+
+        verbose?("Build command environment:")
+        if config.pluginLogging && config.verboseLogging {
             for (key, value) in environment.sorted(by: { $0.key < $1.key }) {
-                logger?("\t\(key): \(value)")
+                verbose?("\t\(key): \(value)")
             }
         }
+
+        verbose?("Command: \(executable) \(arguments.joined(separator: " "))")
+
 
         return .buildCommand(
             displayName: "metal",

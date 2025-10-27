@@ -15,10 +15,18 @@ let package = Package(
             name: "MetalCompilerPlugin",
             capability: .buildTool()
         ),
+
+        // The following targets are for testing the plugin and are examples of its usage.
+        .target(
+            name: "DependencyShaders",
+            publicHeadersPath: ".",
+            plugins: ["MetalCompilerPlugin"]
+        ),
         .target(
             name: "ExampleShaders",
-            resources: [.copy("Empty.txt")],
-            plugins: ["MetalCompilerPlugin"]
+            dependencies: ["DependencyShaders"],
+            publicHeadersPath: ".",
+            plugins: ["MetalCompilerPlugin"],
         ),
         .testTarget(
             name: "MetalCompilerPluginTests",
