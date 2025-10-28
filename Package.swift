@@ -8,7 +8,7 @@ let package = Package(
         .plugin(
             name: "MetalCompilerPlugin",
             targets: ["MetalCompilerPlugin"]
-        ),
+        )
     ],
     targets: [
         .plugin(
@@ -26,12 +26,12 @@ let package = Package(
             name: "ExampleShaders",
             dependencies: ["DependencyShaders"],
             publicHeadersPath: ".",
-            plugins: ["MetalCompilerPlugin"],
+            plugins: ["MetalCompilerPlugin"]
         ),
         .testTarget(
             name: "MetalCompilerPluginTests",
             dependencies: ["ExampleShaders"],
             resources: [.copy("Empty.txt")]
-        ),
+        )
     ]
 )
