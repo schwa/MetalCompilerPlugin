@@ -72,6 +72,7 @@ All configuration options are optional. Without any configuration file, the plug
     "find-inputs": true,
     "include-dependencies": false,
     "dependency-path-suffix": "include",
+    "include-paths": ["Headers", "Metal/Include"],
     "inputs": ["additional/file.metal"],
     "output": "debug.metallib",
     "cache": "/path/to/cache",
@@ -94,9 +95,11 @@ All configuration options are optional. Without any configuration file, the plug
 
 - **`find-inputs`** (boolean, default: `true`): Whether to automatically scan the target directory for `.metal` files. When `true`, all `.metal` files in the target are included.
 
-- **`include-dependencies`** (boolean, default: `false`): Whether to include target dependencies as include paths (`-I`) when compiling. This allows Metal files to import headers from dependency targets.
+- **`include-dependencies`** (boolean, default: `false`): Whether to include target dependencies as include paths (`-I`) when compiling. This allows Metal files to import headers from dependency targets. Product dependencies and their nested target dependencies are recursively processed.
 
 - **`dependency-path-suffix`** (string, optional): A path suffix to append to each dependency directory when generating include paths. Useful when headers are in a subdirectory like `include/`. Only applies when `include-dependencies` is `true`.
+
+- **`include-paths`** (array of strings, optional): Additional include paths relative to the target directory. Each path is prepended with the target directory and added as a `-I` flag. For example, `["Headers", "Metal/Include"]` will add `-I /path/to/target/Headers -I /path/to/target/Metal/Include` to the compiler arguments.
 
 - **`inputs`** (array of strings, default: `[]`): Additional input files to compile, in addition to those found by scanning (if enabled).
 
@@ -152,6 +155,16 @@ For including headers from dependency targets:
     "dependency-path-suffix": "include"
 }
 ```
+
+For adding custom include paths within your target:
+
+```json
+{
+    "include-paths": ["Headers", "Shaders/Common", "Metal/Include"]
+}
+```
+
+This will automatically prepend your target directory to each path and add them as `-I` flags to the compiler.
 
 ## License
 

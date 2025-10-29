@@ -35,6 +35,7 @@ struct MetalCompiler: Decodable {
             case scanInputsInDirectory = "find-inputs"
             case includeDependencies = "include-dependencies"
             case dependencyPathSuffix = "dependency-path-suffix"
+            case includePaths = "include-paths"
             case inputs = "inputs"
             case output = "output"
             case cache = "cache"
@@ -51,6 +52,7 @@ struct MetalCompiler: Decodable {
         var scanInputsInDirectory: Bool = true
         var includeDependencies: Bool = false
         var dependencyPathSuffix: String?
+        var includePaths: [String]?
         var inputs: [String]
         var output: String = "debug.metallib"
         var cache: String?
@@ -69,6 +71,7 @@ struct MetalCompiler: Decodable {
             scanInputsInDirectory = try container.decodeIfPresent(Bool.self, forKey: .scanInputsInDirectory) ?? true
             includeDependencies = try container.decodeIfPresent(Bool.self, forKey: .includeDependencies) ?? false
             dependencyPathSuffix = try container.decodeIfPresent(String.self, forKey: .dependencyPathSuffix)
+            includePaths = try container.decodeIfPresent([String].self, forKey: .includePaths)
             inputs = try container.decodeIfPresent([String].self, forKey: .inputs) ?? []
             output = try container.decodeIfPresent(String.self, forKey: .output) ?? "debug.metallib"
             cache = try container.decodeIfPresent(String.self, forKey: .cache)
@@ -145,23 +148,27 @@ struct MetalCompiler: Decodable {
 
         // Dependencies
         if config.includeDependencies {
-            logger?("Including \(target.dependencies.count) dependency include path(s)")
-            for dependency: TargetDependency in target.dependencies {
-                switch dependency {
-                case .product:
-                    Diagnostics.error("Product dependencies are not supported for include paths in MetalCompilerPlugin.")
-                case .target(let target):
-                    let includePath: String
-                    if let suffix = config.dependencyPathSuffix {
-                        includePath = target.directory.appending([suffix]).string
-                    } else {
-                        includePath = target.directory.string
-                    }
-                    verbose?("  -I \(includePath)")
-                    arguments += ["-I", includePath]
-                @unknown default:
-                    Diagnostics.error("Unknown dependency type in MetalCompilerPlugin.")
-                }
+            logger?("Including dependency include path(s)")
+            var visited = Set<String>()
+            let includePaths = collectIncludePaths(
+                from: target.dependencies,
+                suffix: config.dependencyPathSuffix,
+                visited: &visited,
+                verbose: verbose
+            )
+            logger?("Found \(includePaths.count) dependency include path(s)")
+            for path in includePaths {
+                arguments += ["-I", path]
+            }
+        }
+
+        // User-specified include paths
+        if let includePaths = config.includePaths {
+            logger?("Adding \(includePaths.count) custom include path(s)")
+            for relativePath in includePaths {
+                let fullPath = target.directory.appending([relativePath]).string
+                verbose?("  -I \(fullPath)")
+                arguments += ["-I", fullPath]
             }
         }
 
@@ -203,6 +210,75 @@ struct MetalCompiler: Decodable {
             inputFiles: inputs.map { Path($0) },
             outputFiles: [output]
         )
+    }
+
+    private func collectIncludePaths(
+        from dependencies: [TargetDependency],
+        suffix: String?,
+        visited: inout Set<String>,
+        verbose: ((String) -> Void)?
+    ) -> [String] {
+        var paths: [String] = []
+
+        for dependency in dependencies {
+            switch dependency {
+            case .product(let product):
+                // Process all targets in the product
+                for target in product.targets {
+                    let targetID = target.id
+                    guard !visited.contains(targetID) else { continue }
+                    visited.insert(targetID)
+
+                    // Add this target's path
+                    let includePath: String
+                    if let suffix = suffix {
+                        includePath = target.directory.appending([suffix]).string
+                    } else {
+                        includePath = target.directory.string
+                    }
+                    paths.append(includePath)
+                    verbose?("  -I \(includePath)")
+
+                    // Recursively process this target's dependencies
+                    let nestedPaths = collectIncludePaths(
+                        from: target.dependencies,
+                        suffix: suffix,
+                        visited: &visited,
+                        verbose: verbose
+                    )
+                    paths.append(contentsOf: nestedPaths)
+                }
+
+            case .target(let target):
+                let targetID = target.id
+                guard !visited.contains(targetID) else { continue }
+                visited.insert(targetID)
+
+                // Add this target's path
+                let includePath: String
+                if let suffix = suffix {
+                    includePath = target.directory.appending([suffix]).string
+                } else {
+                    includePath = target.directory.string
+                }
+                paths.append(includePath)
+                verbose?("  -I \(includePath)")
+
+                // Recursively process this target's dependencies
+                let nestedPaths = collectIncludePaths(
+                    from: target.dependencies,
+                    suffix: suffix,
+                    visited: &visited,
+                    verbose: verbose
+                )
+                paths.append(contentsOf: nestedPaths)
+
+            @unknown default:
+                Diagnostics.error("Unknown dependency type in MetalCompilerPlugin.")
+            }
+        }
+
+        return paths
     }
 }
 
