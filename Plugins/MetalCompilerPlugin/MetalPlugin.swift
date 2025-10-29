@@ -34,6 +34,7 @@ struct MetalCompiler: Decodable {
             case metalPath = "metal"
             case scanInputsInDirectory = "find-inputs"
             case includeDependencies = "include-dependencies"
+            case dependencyPathSuffix = "dependency-path-suffix"
             case inputs = "inputs"
             case output = "output"
             case cache = "cache"
@@ -42,12 +43,14 @@ struct MetalCompiler: Decodable {
             case verboseLogging = "verbose-logging"
             case metalEnableLogging = "metal-enable-logging"
             case extraEnvironment = "env"
+            case loggingPrefix = "logging-prefix"
         }
 
         var useXcrun: Bool = true
         var metalPath: String?
         var scanInputsInDirectory: Bool = true
         var includeDependencies: Bool = false
+        var dependencyPathSuffix: String?
         var inputs: [String]
         var output: String = "debug.metallib"
         var cache: String?
@@ -56,6 +59,7 @@ struct MetalCompiler: Decodable {
         var verboseLogging: Bool = false
         var metalEnableLogging: Bool = false
         var extraEnvironment: [String: String]?
+        var loggingPrefix: String?
 
         init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -64,6 +68,7 @@ struct MetalCompiler: Decodable {
             metalPath = try container.decodeIfPresent(String.self, forKey: .metalPath)
             scanInputsInDirectory = try container.decodeIfPresent(Bool.self, forKey: .scanInputsInDirectory) ?? true
             includeDependencies = try container.decodeIfPresent(Bool.self, forKey: .includeDependencies) ?? false
+            dependencyPathSuffix = try container.decodeIfPresent(String.self, forKey: .dependencyPathSuffix)
             inputs = try container.decodeIfPresent([String].self, forKey: .inputs) ?? []
             output = try container.decodeIfPresent(String.self, forKey: .output) ?? "debug.metallib"
             cache = try container.decodeIfPresent(String.self, forKey: .cache)
@@ -72,6 +77,7 @@ struct MetalCompiler: Decodable {
             verboseLogging = try container.decodeIfPresent(Bool.self, forKey: .verboseLogging) ?? false
             metalEnableLogging = try container.decodeIfPresent(Bool.self, forKey: .metalEnableLogging) ?? false
             extraEnvironment = try container.decodeIfPresent([String: String].self, forKey: .extraEnvironment)
+            loggingPrefix = try container.decodeIfPresent(String.self, forKey: .loggingPrefix)
         }
     }
 
@@ -82,13 +88,17 @@ struct MetalCompiler: Decodable {
     }
 
     func buildCommand(context: PackagePlugin.PluginContext, target: PackagePlugin.Target) -> PackagePlugin.Command {
+        let prefix = config.loggingPrefix.map { $0 + " " } ?? ""
+
         let logger: ((String) -> Void)? = config.pluginLogging ? { (string: String) in
-            Diagnostics.remark(string)
+            Diagnostics.remark(prefix + string)
         } : nil
 
         let verbose: ((String) -> Void)? = config.pluginLogging && config.verboseLogging ? { (string: String) in
-            Diagnostics.remark(string)
+            Diagnostics.remark(prefix + string)
         } : nil
+
+        logger?("Current working directory: \(FileManager.default.currentDirectoryPath)")
 
         verbose?("Input environment:")
         if config.pluginLogging && config.verboseLogging {
@@ -141,8 +151,14 @@ struct MetalCompiler: Decodable {
                 case .product:
                     Diagnostics.error("Product dependencies are not supported for include paths in MetalCompilerPlugin.")
                 case .target(let target):
-                    verbose?("  -I \(target.directory.string)")
-                    arguments += ["-I", target.directory.string]
+                    let includePath: String
+                    if let suffix = config.dependencyPathSuffix {
+                        includePath = target.directory.appending([suffix]).string
+                    } else {
+                        includePath = target.directory.string
+                    }
+                    verbose?("  -I \(includePath)")
+                    arguments += ["-I", includePath]
                 @unknown default:
                     Diagnostics.error("Unknown dependency type in MetalCompilerPlugin.")
                 }

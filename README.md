@@ -70,12 +70,16 @@ All configuration options are optional. Without any configuration file, the plug
     "xcrun": true,
     "metal": "/path/to/metal",
     "find-inputs": true,
+    "include-dependencies": false,
+    "dependency-path-suffix": "include",
     "inputs": ["additional/file.metal"],
     "output": "debug.metallib",
     "cache": "/path/to/cache",
     "flags": ["-gline-tables-only", "-frecord-sources"],
     "plugin-logging": false,
+    "verbose-logging": false,
     "metal-enable-logging": false,
+    "logging-prefix": "[Metal]",
     "env": {
         "TMPDIR": "/private/tmp"
     }
@@ -90,6 +94,10 @@ All configuration options are optional. Without any configuration file, the plug
 
 - **`find-inputs`** (boolean, default: `true`): Whether to automatically scan the target directory for `.metal` files. When `true`, all `.metal` files in the target are included.
 
+- **`include-dependencies`** (boolean, default: `false`): Whether to include target dependencies as include paths (`-I`) when compiling. This allows Metal files to import headers from dependency targets.
+
+- **`dependency-path-suffix`** (string, optional): A path suffix to append to each dependency directory when generating include paths. Useful when headers are in a subdirectory like `include/`. Only applies when `include-dependencies` is `true`.
+
 - **`inputs`** (array of strings, default: `[]`): Additional input files to compile, in addition to those found by scanning (if enabled).
 
 - **`output`** (string, default: `"debug.metallib"`): Name of the output metallib file.
@@ -98,7 +106,11 @@ All configuration options are optional. Without any configuration file, the plug
 
 - **`flags`** (array of strings, default: `["-gline-tables-only", "-frecord-sources"]`): Compiler flags to pass to the metal compiler. The default flags enable debugging in Xcode Metal Debugger.
 
-- **`plugin-logging`** (boolean, default: `false`): Enable verbose logging from the plugin itself for debugging purposes.
+- **`plugin-logging`** (boolean, default: `false`): Enable logging from the plugin itself for debugging purposes.
+
+- **`verbose-logging`** (boolean, default: `false`): Enable more detailed verbose logging. Only takes effect when `plugin-logging` is also `true`. Shows additional details like all environment variables, full command arguments, and input/output file lists.
+
+- **`logging-prefix`** (string, optional): Custom prefix to prepend to all log messages from the plugin. Useful for distinguishing plugin output in complex build logs.
 
 - **`metal-enable-logging`** (boolean, default: `false`): Enable metal compiler logging by adding the `-fmetal-enable-logging` flag.
 
@@ -114,11 +126,30 @@ For basic usage with debugging enabled:
 }
 ```
 
+For verbose debugging with a custom prefix:
+
+```json
+{
+    "plugin-logging": true,
+    "verbose-logging": true,
+    "logging-prefix": "[MyShaders]"
+}
+```
+
 For custom compiler flags:
 
 ```json
 {
     "flags": ["-gline-tables-only", "-frecord-sources", "-O2"]
+}
+```
+
+For including headers from dependency targets:
+
+```json
+{
+    "include-dependencies": true,
+    "dependency-path-suffix": "include"
 }
 ```
 
