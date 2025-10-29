@@ -35,6 +35,7 @@ struct MetalCompiler: Decodable {
             case scanInputsInDirectory = "find-inputs"
             case includeDependencies = "include-dependencies"
             case dependencyPathSuffix = "dependency-path-suffix"
+            case includePaths = "include-paths"
             case inputs = "inputs"
             case output = "output"
             case cache = "cache"
@@ -51,6 +52,7 @@ struct MetalCompiler: Decodable {
         var scanInputsInDirectory: Bool = true
         var includeDependencies: Bool = false
         var dependencyPathSuffix: String?
+        var includePaths: [String]?
         var inputs: [String]
         var output: String = "debug.metallib"
         var cache: String?
@@ -69,6 +71,7 @@ struct MetalCompiler: Decodable {
             scanInputsInDirectory = try container.decodeIfPresent(Bool.self, forKey: .scanInputsInDirectory) ?? true
             includeDependencies = try container.decodeIfPresent(Bool.self, forKey: .includeDependencies) ?? false
             dependencyPathSuffix = try container.decodeIfPresent(String.self, forKey: .dependencyPathSuffix)
+            includePaths = try container.decodeIfPresent([String].self, forKey: .includePaths)
             inputs = try container.decodeIfPresent([String].self, forKey: .inputs) ?? []
             output = try container.decodeIfPresent(String.self, forKey: .output) ?? "debug.metallib"
             cache = try container.decodeIfPresent(String.self, forKey: .cache)
@@ -156,6 +159,16 @@ struct MetalCompiler: Decodable {
             logger?("Found \(includePaths.count) dependency include path(s)")
             for path in includePaths {
                 arguments += ["-I", path]
+            }
+        }
+
+        // User-specified include paths
+        if let includePaths = config.includePaths {
+            logger?("Adding \(includePaths.count) custom include path(s)")
+            for relativePath in includePaths {
+                let fullPath = target.directory.appending([relativePath]).string
+                verbose?("  -I \(fullPath)")
+                arguments += ["-I", fullPath]
             }
         }
 
