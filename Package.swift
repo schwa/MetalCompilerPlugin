@@ -8,12 +8,16 @@ let package = Package(
         .plugin(
             name: "MetalCompilerPlugin",
             targets: ["MetalCompilerPlugin"]
-        )
+        ),
+        .library(name: "MetalCompilerPluginSupport", targets: ["MetalCompilerPluginSupport"]),
     ],
     targets: [
         .plugin(
             name: "MetalCompilerPlugin",
             capability: .buildTool()
+        ),
+        .target(
+            name: "MetalCompilerPluginSupport"
         ),
 
         // The following targets are for testing the plugin and are examples of its usage.
