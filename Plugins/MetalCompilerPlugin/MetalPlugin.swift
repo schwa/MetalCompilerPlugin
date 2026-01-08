@@ -190,6 +190,13 @@ struct MetalCompiler: Decodable {
         environment["TMPDIR"] = "/private/tmp"
         verbose?("Custom TMPDIR: /private/tmp")
 
+        if let extraEnvironment = config.extraEnvironment {
+            for (key, value) in extraEnvironment {
+                environment[key] = value
+                verbose?("Extra environment: \(key)=\(value)")
+            }
+        }
+
         arguments += ["-DMETAL"]
 
         verbose?("Build command environment:")
