@@ -131,9 +131,9 @@ struct MetalCompiler: Decodable {
             arguments += extraFlags
             verbose?("Extra flags: \(extraFlags.joined(separator: " "))")
         }
-        else {
+        else if target.hasCompilationCondition("METAL_COMPILER_PLUGIN_DEBUG") {
             arguments += ["-gline-tables-only", "-frecord-sources"]
-            verbose?("Default flags: -gline-tables-only -frecord-sources")
+            verbose?("Default debug flags: -gline-tables-only -frecord-sources")
         }
 
         if config.metalEnableLogging {
@@ -290,6 +290,16 @@ struct MetalCompiler: Decodable {
 }
 
 extension PackagePlugin.Target {
+    func hasCompilationCondition(_ condition: String) -> Bool {
+        if let target = self as? SwiftSourceModuleTarget {
+            return target.compilationConditions.contains(condition)
+        }
+        if let target = self as? ClangSourceModuleTarget {
+            return target.preprocessorDefinitions.contains(condition)
+        }
+        return false
+    }
+
     func findFiles(withPathExtension extension: String) -> [String] {
         let errorHandler = { (_: URL, _: Swift.Error) -> Bool in
             true

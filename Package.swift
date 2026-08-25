@@ -24,12 +24,14 @@ let package = Package(
         .target(
             name: "DependencyShaders",
             publicHeadersPath: ".",
+            cSettings: [.define("METAL_COMPILER_PLUGIN_DEBUG", .when(configuration: .debug))],
             plugins: ["MetalCompilerPlugin"]
         ),
         .target(
             name: "ExampleShaders",
             dependencies: ["DependencyShaders"],
             publicHeadersPath: ".",
+            cSettings: [.define("METAL_COMPILER_PLUGIN_DEBUG", .when(configuration: .debug))],
             plugins: ["MetalCompilerPlugin"]
         ),
         .testTarget(

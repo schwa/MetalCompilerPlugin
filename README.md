@@ -33,11 +33,19 @@ For example:
         .package(url: "https://github.com/schwa/MetalCompilerPlugin", branch: "main"),
     ],
     targets: [
-        .target(name: "MyExampleShaders", plugins: [
-            .plugin(name: "MetalCompilerPlugin", package: "MetalCompilerPlugin")
-        ]),
+        .target(
+            name: "MyExampleShaders",
+            cSettings: [
+                .define("METAL_COMPILER_PLUGIN_DEBUG", .when(configuration: .debug))
+            ],
+            plugins: [
+                .plugin(name: "MetalCompilerPlugin", package: "MetalCompilerPlugin")
+            ]
+        ),
     ]
 ```
+
+The `METAL_COMPILER_PLUGIN_DEBUG` condition enables `-gline-tables-only` and `-frecord-sources` for debug builds. Release builds omit these flags so the packaged metallib does not contain development-only shader source. SwiftPM does not expose the active build configuration directly to build-tool plugins, so the conditional setting passes it through the target's resolved build settings.
 
 Note the title of the output metal library file will be `debug.metallib` and will live side-by-side with the `default.metallib` file. See [Limitations](#limitations) below.
 
@@ -63,7 +71,7 @@ The plugin can be configured by placing a `metal-compiler-plugin.json` or `.meta
 
 ### Configuration Options
 
-All configuration options are optional. Without any configuration file, the plugin will use the default settings (add debug flags, use xcrun, use a custom TMPDIR, do not enable logging).
+All configuration options are optional. Without any configuration file, the plugin uses xcrun, adds debug flags when `METAL_COMPILER_PLUGIN_DEBUG` is active, uses a custom TMPDIR, and disables logging.
 
 ```json
 {
@@ -107,7 +115,7 @@ All configuration options are optional. Without any configuration file, the plug
 
 - **`cache`** (string, default: plugin work directory): Path to the modules cache directory.
 
-- **`flags`** (array of strings, default: `["-gline-tables-only", "-frecord-sources"]`): Compiler flags to pass to the metal compiler. The default flags enable debugging in Xcode Metal Debugger.
+- **`flags`** (array of strings, default: configuration-dependent): Compiler flags to pass to the metal compiler. When omitted, debug builds marked with `METAL_COMPILER_PLUGIN_DEBUG` use `-gline-tables-only` and `-frecord-sources`; other builds add no flags. An explicit array overrides this behavior for every configuration.
 
 - **`plugin-logging`** (boolean, default: `false`): Enable logging from the plugin itself for debugging purposes.
 
@@ -121,7 +129,7 @@ All configuration options are optional. Without any configuration file, the plug
 
 ### Example Configuration
 
-For basic usage with debugging enabled:
+For basic plugin logging:
 
 ```json
 {
