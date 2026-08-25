@@ -23,6 +23,7 @@ let package = Package(
         // The following targets are for testing the plugin and are examples of its usage.
         .target(
             name: "DependencyShaders",
+            exclude: ["DependencyShaders.metal"],
             publicHeadersPath: ".",
             cSettings: [.define("METAL_COMPILER_PLUGIN_DEBUG", .when(configuration: .debug))],
             plugins: ["MetalCompilerPlugin"]
@@ -30,6 +31,7 @@ let package = Package(
         .target(
             name: "ExampleShaders",
             dependencies: ["DependencyShaders"],
+            exclude: ["ExampleShaders.metal"],
             publicHeadersPath: ".",
             cSettings: [.define("METAL_COMPILER_PLUGIN_DEBUG", .when(configuration: .debug))],
             plugins: ["MetalCompilerPlugin"]

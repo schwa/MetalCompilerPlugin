@@ -27,7 +27,12 @@ public extension Bundle {
         }
     }
 
-    /// Looks for a child bundle with a name of the form: `"*_<suffix>.bundle"`. Use like `Bundle.module.parentBundle?.childBundle(withSuffix: "<target name>")` to help find a bundle with shaders
+    /// Returns the first child bundle whose name ends with `_<suffix>.bundle`.
+    ///
+    /// Use `Bundle.module.parentBundle?.childBundle(withSuffix: "<target name>")` to find a shader bundle.
+    ///
+    /// - Parameter suffix: The target-name suffix of the bundle.
+    /// - Returns: The matching bundle, or `nil` if no child bundle matches.
     func childBundle(withSuffix suffix: String) -> Bundle? {
         childBundles.first {
             $0.bundleURL.lastPathComponent.hasSuffix(("_\(suffix).bundle"))

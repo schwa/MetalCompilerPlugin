@@ -10,7 +10,7 @@ func testMetalCompilerPlugin() throws {
     let shadersBundleURL = Bundle.module.bundleURL.appendingPathComponent("../MetalCompilerPlugin_ExampleShaders.bundle")
     print(shadersBundleURL)
     let bundle = Bundle(url: shadersBundleURL)!
-    let libraryURL = bundle.url(forResource: "debug", withExtension: "metallib")!
+    let libraryURL = bundle.url(forResource: "default", withExtension: "metallib")!
     let device = MTLCreateSystemDefaultDevice()!
     let library = try device.makeLibrary(URL: libraryURL)
     print(library)

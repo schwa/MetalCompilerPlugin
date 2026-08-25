@@ -1,10 +1,10 @@
 # MetalCompilerPlugin
 
-A Swift Package Manager plugin to compile Metal files that can be debugged in Xcode Metal Debugger.
+A Swift Package Manager plugin that compiles Metal source for debugging with Xcode's Metal debugger.
 
 ## Description
 
-Swift Package Manager now[^1] seems to compile all Metal files within a target into a `default.metallib`. Alas, this file cannot be debugged in Xcode Metal Debugger.
+Swift Package Manager compiles the Metal files in a target into `default.metallib`. However, Xcode's Metal debugger cannot debug this library.
 
 > Unable to create shader debug session
 >
@@ -16,15 +16,15 @@ Swift Package Manager now[^1] seems to compile all Metal files within a target i
 
 ([Screenshot](Documentation/Screenshot%201.png)).
 
-This plug-in provides an alternative way to compile Metal files into a `metallib` that can be debugged.
+The plugin compiles a Metal library that includes the data required by the debugger.
 
-This project also shows how to create a ["_Pure-Metal target_"](#pure-metal-targets) that can be used to contain your Metal source code and header files.
+The project also shows how to create a [pure-Metal target](#pure-metal-targets) for Metal source and header files.
 
-[^1]: Prior to Swift Package Manager 5.3 it was impossible to process Metal files at all. Version 5.3 added the capability to process resources, including Metal files. Somewhere between versions 5.3 and 5.7 Swift Package Manager gained the ability to transparently compile all Metal files in a package.
+[^1]: Swift Package Manager 5.3 added support for resources, including Metal files. A later release added automatic Metal compilation.
 
 ## Usage
 
-In your `Package.swift` file, add `MetalCompilerPlugin` as a dependency. And add the `MetalCompilerPlugin` to your target's `plugins` array.
+In `Package.swift`, add `MetalCompilerPlugin` as a package dependency. Add the plugin to the target and exclude its Metal source directory.
 
 For example:
 
@@ -35,6 +35,7 @@ For example:
     targets: [
         .target(
             name: "MyExampleShaders",
+            exclude: ["Shaders"],
             cSettings: [
                 .define("METAL_COMPILER_PLUGIN_DEBUG", .when(configuration: .debug))
             ],
@@ -45,33 +46,80 @@ For example:
     ]
 ```
 
-The `METAL_COMPILER_PLUGIN_DEBUG` condition enables `-gline-tables-only` and `-frecord-sources` for debug builds. Release builds omit these flags so the packaged metallib does not contain development-only shader source. SwiftPM does not expose the active build configuration directly to build-tool plugins, so the conditional setting passes it through the target's resolved build settings.
+The `METAL_COMPILER_PLUGIN_DEBUG` condition adds `-gline-tables-only` and `-frecord-sources` to debug builds. Release builds omit these flags and the shader source. Build-tool plugins cannot read the active build configuration directly. The conditional setting passes the configuration through the resolved target settings.
 
-Note the title of the output metal library file will be `debug.metallib` and will live side-by-side with the `default.metallib` file. See [Limitations](#limitations) below.
+Put the Metal files in `Sources/MyExampleShaders/Shaders/`. The plugin scans excluded directories, but SwiftPM does not compile their contents.
 
-## Limitations
+## Tricks and Tips
 
-The output metal library file will be `debug.metallib` and will live side-by-side with the `default.metallib` file. This is because of the `default.metallib` file is created by the Swift Package Manager and cannot be overridden.
+### Produce One Metal Library
 
-You will not be able to use `MTLDevice.makeDefaultLibrary()` to load the `debug.metallib` file. Instead, you will need to use `MTLDevice.makeLibrary(url:)` to load the `debug.metallib` file. See the unit tests for an example.
+SwiftPM compiles recognized `.metal` files into `default.metallib`. The plugin also uses this name, so both build commands conflict.
+
+Keep the Metal files in one directory and exclude that directory from the target:
+
+```swift
+.target(
+    name: "MyExampleShaders",
+    exclude: ["Shaders"],
+    plugins: [
+        .plugin(name: "MetalCompilerPlugin", package: "MetalCompilerPlugin")
+    ]
+)
+```
+
+The plugin scans the target directory with `FileManager`, so it still finds files under `Shaders`. The output bundle contains one `default.metallib`.
+
+Without a common directory, list each `.metal` file in `exclude`. SwiftPM does not support glob patterns in this setting.
+
+### Include Headers from Another Package Target
+
+Declare the package target as a dependency:
+
+```swift
+.target(
+    name: "ExampleShaders",
+    dependencies: ["DependencyShaders"],
+    exclude: ["Shaders"],
+    plugins: [
+        .plugin(name: "MetalCompilerPlugin", package: "MetalCompilerPlugin")
+    ]
+)
+```
+
+Enable dependency include paths in `Sources/ExampleShaders/metal-compiler-plugin.json`:
+
+```json
+{
+    "include-dependencies": true
+}
+```
+
+The Metal source can now include a header from `DependencyShaders`:
+
+```metal
+#include "DependencyShaders.h"
+```
+
+By default, the plugin adds each dependency target directory as an `-I` path. It also adds directories from transitive dependencies.
+
+If each dependency stores headers in an `include` directory, add `"dependency-path-suffix": "include"` to the configuration.
 
 ## Pure-Metal Targets
 
-A "Pure-Metal" target is a target that contains only Metal source code and header files. This is useful for projects that contain a lot of Metal code and want to keep it separate from the rest of the project.
+A pure-Metal target keeps Metal code separate from the rest of the package. It contains Metal source, headers, and a small C-family implementation file.
 
-This is also useful so that Metal and Swift can share types defined in common header files. For example, a Vertex or Uniforms struct defined in a header file can be used by both Metal and Swift code.
+Shared headers let Metal and Swift use the same types. This prevents duplicate declarations, layout differences, and data corruption.
 
-Direct sharing of Metal types with Swift prevents duplication of types and makes sure that your types have a consistent layout and packing across Metal and Swift. Simply defining the same type in both Metal and Swift manually is not enough and can lead to subtle memory alignment-related crashes or data corruption.
-
-See the `ExampleShaders` target in the `Package.swift` file. The "Pure-Metal" target must not contain any Swift files. It should contain your Metal source code and header files (contained in an included folder). It should also contain a `Module.map` file that allows Swift to import the header files.
+See the `ExampleShaders` target in `Package.swift`. It uses `publicHeadersPath` and an empty `.m` file with the Metal source and headers.
 
 ## Configuration
 
-The plugin can be configured by placing a `metal-compiler-plugin.json` or `.metal-compiler-plugin.json` file in your target's directory. If no configuration file is found, the plugin will use default settings.
+Place `metal-compiler-plugin.json` or `.metal-compiler-plugin.json` in the target directory. If neither file exists, the plugin uses its defaults.
 
 ### Configuration Options
 
-All configuration options are optional. Without any configuration file, the plugin uses xcrun, adds debug flags when `METAL_COMPILER_PLUGIN_DEBUG` is active, uses a custom TMPDIR, and disables logging.
+All options are optional. By default, the plugin uses `xcrun`, sets `TMPDIR`, and disables logging. Debug flags require `METAL_COMPILER_PLUGIN_DEBUG`.
 
 ```json
 {
@@ -82,7 +130,7 @@ All configuration options are optional. Without any configuration file, the plug
     "dependency-path-suffix": "include",
     "include-paths": ["Headers", "Metal/Include"],
     "inputs": ["additional/file.metal"],
-    "output": "debug.metallib",
+    "output": "default.metallib",
     "cache": "/path/to/cache",
     "flags": ["-gline-tables-only", "-frecord-sources"],
     "plugin-logging": false,
@@ -97,35 +145,35 @@ All configuration options are optional. Without any configuration file, the plug
 
 #### Option Descriptions
 
-- **`xcrun`** (boolean, default: `true`): Whether to use `xcrun` to find the metal compiler. When `true`, uses `/usr/bin/xcrun metal`. When `false`, you must specify the `metal` path.
+- **`xcrun`** (boolean, default: `true`): Uses `/usr/bin/xcrun metal` to find the Metal compiler.
 
-- **`metal`** (string, required when `xcrun` is `false`): Direct path to the metal compiler executable.
+- **`metal`** (string): Sets the Metal compiler path. This option is required when `xcrun` is `false`.
 
-- **`find-inputs`** (boolean, default: `true`): Whether to automatically scan the target directory for `.metal` files. When `true`, all `.metal` files in the target are included.
+- **`find-inputs`** (boolean, default: `true`): Scans the target directory for `.metal` files.
 
-- **`include-dependencies`** (boolean, default: `false`): Whether to include target dependencies as include paths (`-I`) when compiling. This allows Metal files to import headers from dependency targets. Product dependencies and their nested target dependencies are recursively processed.
+- **`include-dependencies`** (boolean, default: `false`): Adds dependency targets as include paths. This option includes product dependencies and transitive dependencies.
 
-- **`dependency-path-suffix`** (string, optional): A path suffix to append to each dependency directory when generating include paths. Useful when headers are in a subdirectory like `include/`. Only applies when `include-dependencies` is `true`.
+- **`dependency-path-suffix`** (string): Appends a suffix to each dependency include path. This option applies only when `include-dependencies` is `true`.
 
-- **`include-paths`** (array of strings, optional): Additional include paths relative to the target directory. Each path is prepended with the target directory and added as a `-I` flag. For example, `["Headers", "Metal/Include"]` will add `-I /path/to/target/Headers -I /path/to/target/Metal/Include` to the compiler arguments.
+- **`include-paths`** (array of strings): Adds include paths relative to the target directory.
 
-- **`inputs`** (array of strings, default: `[]`): Additional input files to compile, in addition to those found by scanning (if enabled).
+- **`inputs`** (array of strings, default: `[]`): Adds input files to those found by directory scanning.
 
-- **`output`** (string, default: `"debug.metallib"`): Name of the output metallib file.
+- **`output`** (string, default: `"default.metallib"`): Sets the output file name.
 
-- **`cache`** (string, default: plugin work directory): Path to the modules cache directory.
+- **`cache`** (string, default: plugin work directory): Sets the module cache directory.
 
-- **`flags`** (array of strings, default: configuration-dependent): Compiler flags to pass to the metal compiler. When omitted, debug builds marked with `METAL_COMPILER_PLUGIN_DEBUG` use `-gline-tables-only` and `-frecord-sources`; other builds add no flags. An explicit array overrides this behavior for every configuration.
+- **`flags`** (array of strings): Replaces the configuration-dependent compiler flags. Without this option, marked debug builds include source information. Other builds add no flags.
 
-- **`plugin-logging`** (boolean, default: `false`): Enable logging from the plugin itself for debugging purposes.
+- **`plugin-logging`** (boolean, default: `false`): Enables plugin logging.
 
-- **`verbose-logging`** (boolean, default: `false`): Enable more detailed verbose logging. Only takes effect when `plugin-logging` is also `true`. Shows additional details like all environment variables, full command arguments, and input/output file lists.
+- **`verbose-logging`** (boolean, default: `false`): Adds environment, command, input, and output details to plugin logs. This option requires `plugin-logging`.
 
-- **`logging-prefix`** (string, optional): Custom prefix to prepend to all log messages from the plugin. Useful for distinguishing plugin output in complex build logs.
+- **`logging-prefix`** (string): Adds a prefix to each plugin log message.
 
-- **`metal-enable-logging`** (boolean, default: `false`): Enable metal compiler logging by adding the `-fmetal-enable-logging` flag.
+- **`metal-enable-logging`** (boolean, default: `false`): Adds the `-fmetal-enable-logging` compiler flag.
 
-- **`env`** (object, default: `{}`): Additional environment variables to set when running the metal compiler.
+- **`env`** (object, default: `{}`): Adds environment variables for the Metal compiler.
 
 ### Example Configuration
 
@@ -172,14 +220,9 @@ For adding custom include paths within your target:
 }
 ```
 
-This will automatically prepend your target directory to each path and add them as `-I` flags to the compiler.
+The plugin resolves each path from the target directory and passes it to the compiler with `-I`.
 
 ## License
 
 BSD 3-clause. See [LICENSE.md](LICENSE.md).
 
-## TODO
-
-- [ ] File and link to feedback items for the limitations and issues above.
-- [X] More configuration options.
-- [ ] Searching for the metallib works in Xcode Unit Tests but fails under `swift test`. Why?

@@ -54,7 +54,7 @@ struct MetalCompiler: Decodable {
         var dependencyPathSuffix: String?
         var includePaths: [String]?
         var inputs: [String]
-        var output: String = "debug.metallib"
+        var output: String = "default.metallib"
         var cache: String?
         var extraFlags: [String]?
         var pluginLogging: Bool = false
@@ -73,7 +73,7 @@ struct MetalCompiler: Decodable {
             dependencyPathSuffix = try container.decodeIfPresent(String.self, forKey: .dependencyPathSuffix)
             includePaths = try container.decodeIfPresent([String].self, forKey: .includePaths)
             inputs = try container.decodeIfPresent([String].self, forKey: .inputs) ?? []
-            output = try container.decodeIfPresent(String.self, forKey: .output) ?? "debug.metallib"
+            output = try container.decodeIfPresent(String.self, forKey: .output) ?? "default.metallib"
             cache = try container.decodeIfPresent(String.self, forKey: .cache)
             extraFlags = try container.decodeIfPresent([String].self, forKey: .extraFlags)
             pluginLogging = try container.decodeIfPresent(Bool.self, forKey: .pluginLogging) ?? false
