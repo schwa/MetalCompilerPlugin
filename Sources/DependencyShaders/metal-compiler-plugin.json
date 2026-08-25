@@ -1,5 +1,6 @@
 {
     "plugin-logging": true,
     "include-dependencies": true,
+    "include-paths": ["include"],
     "verbose-logging": false,
 }

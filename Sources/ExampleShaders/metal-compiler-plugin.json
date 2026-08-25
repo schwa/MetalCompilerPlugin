@@ -1,5 +1,7 @@
 {
     "plugin-logging": true,
     "include-dependencies": true,
+    "dependency-path-suffix": "include",
+    "include-paths": ["include"],
     "verbose-logging": false,
 }

@@ -3,16 +3,17 @@ import Metal
 import Foundation
 
 @Test
-func testMetalCompilerPlugin() throws {
-
-//     TODO: This only works under Xcode Unit Tests. But fails when run from `swift test` command line.
-
+func `builds one default library from an excluded shader directory`() throws {
     let shadersBundleURL = Bundle.module.bundleURL.appendingPathComponent("../MetalCompilerPlugin_ExampleShaders.bundle")
-    print(shadersBundleURL)
-    let bundle = Bundle(url: shadersBundleURL)!
-    let libraryURL = bundle.url(forResource: "default", withExtension: "metallib")!
-    let device = MTLCreateSystemDefaultDevice()!
+    let bundle = try #require(Bundle(url: shadersBundleURL))
+    let libraryURLs = bundle.urls(forResourcesWithExtension: "metallib", subdirectory: nil) ?? []
+
+    #expect(libraryURLs.map(\.lastPathComponent) == ["default.metallib"])
+
+    let device = try #require(MTLCreateSystemDefaultDevice())
+    let libraryURL = try #require(libraryURLs.first)
     let library = try device.makeLibrary(URL: libraryURL)
-    print(library)
+
+    #expect(library.functionNames.contains("k"))
 }
 
