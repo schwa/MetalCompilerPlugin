@@ -48,9 +48,84 @@ For example:
 
 The `METAL_COMPILER_PLUGIN_DEBUG` condition adds `-gline-tables-only` and `-frecord-sources` to debug builds. Release builds omit these flags and the shader source. Build-tool plugins cannot read the active build configuration directly. The conditional setting passes the configuration through the resolved target settings.
 
+> **IMPORTANT:** Earlier versions added debug flags whenever `flags` was absent.
+>
+> The current behavior requires `METAL_COMPILER_PLUGIN_DEBUG` when `flags` is absent. An explicit `flags` array applies to every build configuration.
+
 Put the Metal files in `Sources/MyExampleShaders/Shaders/`. The plugin scans excluded directories, but SwiftPM does not compile their contents.
 
+## Configuration
+
+Place `metal-compiler-plugin.json` or `.metal-compiler-plugin.json` in the target directory. If neither file exists, the plugin uses its defaults.
+
+### Configuration Options
+
+Configuration files use JSON5. They support `//` line comments, `/* */` block comments, and trailing commas. All options are optional. Remove options that you do not need.
+
+```jsonc
+{
+    // Find Metal through /usr/bin/xcrun. Default: true.
+    "xcrun": true,
+
+    // Use this compiler path when xcrun is false.
+    "metal": "/path/to/metal",
+
+    // Scan the target directory for .metal files. Default: true.
+    "find-inputs": true,
+
+    // Add dependency targets as -I paths. Includes product and transitive dependencies.
+    "include-dependencies": false,
+
+    // Append a suffix to each dependency include path.
+    // This option requires include-dependencies.
+    "dependency-path-suffix": "include",
+
+    // Add target-relative -I paths.
+    "include-paths": ["Headers", "Metal/Include"],
+
+    // Add input files to those found by directory scanning. Default: [].
+    "inputs": ["additional/file.metal"],
+
+    // Set the output file name. Default: default.metallib.
+    "output": "default.metallib",
+
+    // Set the module cache directory. Default: the plugin work directory.
+    "cache": "/path/to/cache",
+
+    // Use these flags in every build configuration.
+    // This value includes shader source in Debug and Release.
+    // Remove flags to use METAL_COMPILER_PLUGIN_DEBUG instead.
+    "flags": ["-gline-tables-only", "-frecord-sources"],
+
+    // Enable plugin logging. Default: false.
+    "plugin-logging": false,
+
+    // Add environment, command, input, and output details to plugin logs.
+    // This option requires plugin-logging.
+    "verbose-logging": false,
+
+    // Add a prefix to each plugin log message.
+    "logging-prefix": "[Metal]",
+
+    // Add -fmetal-enable-logging to the compiler flags. Default: false.
+    "metal-enable-logging": false,
+
+    // Add environment variables for the Metal compiler. Default: {}.
+    "env": {
+        "TMPDIR": "/private/tmp"
+    },
+}
+```
+
 ## Tricks and Tips
+
+### Pure-Metal Targets
+
+A pure-Metal target keeps Metal code separate from the rest of the package. It contains Metal source, headers, and a small C-family implementation file.
+
+Shared headers let Metal and Swift use the same types. This prevents duplicate declarations, layout differences, and data corruption.
+
+See the `ExampleShaders` target in `Package.swift`. It uses `publicHeadersPath` and an empty `.m` file with the Metal source and headers.
 
 ### Produce One Metal Library
 
@@ -104,123 +179,6 @@ The Metal source can now include a header from `DependencyShaders`:
 By default, the plugin adds each dependency target directory as an `-I` path. It also adds directories from transitive dependencies.
 
 If each dependency stores headers in an `include` directory, add `"dependency-path-suffix": "include"` to the configuration.
-
-## Pure-Metal Targets
-
-A pure-Metal target keeps Metal code separate from the rest of the package. It contains Metal source, headers, and a small C-family implementation file.
-
-Shared headers let Metal and Swift use the same types. This prevents duplicate declarations, layout differences, and data corruption.
-
-See the `ExampleShaders` target in `Package.swift`. It uses `publicHeadersPath` and an empty `.m` file with the Metal source and headers.
-
-## Configuration
-
-Place `metal-compiler-plugin.json` or `.metal-compiler-plugin.json` in the target directory. If neither file exists, the plugin uses its defaults.
-
-### Configuration Options
-
-All options are optional. By default, the plugin uses `xcrun`, sets `TMPDIR`, and disables logging. Debug flags require `METAL_COMPILER_PLUGIN_DEBUG`.
-
-```json
-{
-    "xcrun": true,
-    "metal": "/path/to/metal",
-    "find-inputs": true,
-    "include-dependencies": false,
-    "dependency-path-suffix": "include",
-    "include-paths": ["Headers", "Metal/Include"],
-    "inputs": ["additional/file.metal"],
-    "output": "default.metallib",
-    "cache": "/path/to/cache",
-    "flags": ["-gline-tables-only", "-frecord-sources"],
-    "plugin-logging": false,
-    "verbose-logging": false,
-    "metal-enable-logging": false,
-    "logging-prefix": "[Metal]",
-    "env": {
-        "TMPDIR": "/private/tmp"
-    }
-}
-```
-
-#### Option Descriptions
-
-- **`xcrun`** (boolean, default: `true`): Uses `/usr/bin/xcrun metal` to find the Metal compiler.
-
-- **`metal`** (string): Sets the Metal compiler path. This option is required when `xcrun` is `false`.
-
-- **`find-inputs`** (boolean, default: `true`): Scans the target directory for `.metal` files.
-
-- **`include-dependencies`** (boolean, default: `false`): Adds dependency targets as include paths. This option includes product dependencies and transitive dependencies.
-
-- **`dependency-path-suffix`** (string): Appends a suffix to each dependency include path. This option applies only when `include-dependencies` is `true`.
-
-- **`include-paths`** (array of strings): Adds include paths relative to the target directory.
-
-- **`inputs`** (array of strings, default: `[]`): Adds input files to those found by directory scanning.
-
-- **`output`** (string, default: `"default.metallib"`): Sets the output file name.
-
-- **`cache`** (string, default: plugin work directory): Sets the module cache directory.
-
-- **`flags`** (array of strings): Replaces the configuration-dependent compiler flags. Without this option, marked debug builds include source information. Other builds add no flags.
-
-- **`plugin-logging`** (boolean, default: `false`): Enables plugin logging.
-
-- **`verbose-logging`** (boolean, default: `false`): Adds environment, command, input, and output details to plugin logs. This option requires `plugin-logging`.
-
-- **`logging-prefix`** (string): Adds a prefix to each plugin log message.
-
-- **`metal-enable-logging`** (boolean, default: `false`): Adds the `-fmetal-enable-logging` compiler flag.
-
-- **`env`** (object, default: `{}`): Adds environment variables for the Metal compiler.
-
-### Example Configuration
-
-For basic plugin logging:
-
-```json
-{
-    "plugin-logging": true
-}
-```
-
-For verbose debugging with a custom prefix:
-
-```json
-{
-    "plugin-logging": true,
-    "verbose-logging": true,
-    "logging-prefix": "[MyShaders]"
-}
-```
-
-For custom compiler flags:
-
-```json
-{
-    "flags": ["-gline-tables-only", "-frecord-sources", "-O2"]
-}
-```
-
-For including headers from dependency targets:
-
-```json
-{
-    "include-dependencies": true,
-    "dependency-path-suffix": "include"
-}
-```
-
-For adding custom include paths within your target:
-
-```json
-{
-    "include-paths": ["Headers", "Shaders/Common", "Metal/Include"]
-}
-```
-
-The plugin resolves each path from the target directory and passes it to the compiler with `-I`.
 
 ## License
 
