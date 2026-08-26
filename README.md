@@ -130,23 +130,49 @@ The `debug` and `release` sections accept `flags`. All other options remain at t
 
 ## Tricks and Tips
 
-### Pure-Metal Targets
+### Create a Pure-Metal Target
 
-A pure-Metal target keeps Metal code separate from the rest of the package. It contains Metal source, headers, and a small C-family implementation file.
+A pure-Metal target keeps Metal source and shared headers separate from Swift code. Use this layout:
 
-Shared headers let Metal and Swift use the same types. This prevents duplicate declarations, layout differences, and data corruption.
+```text
+Sources/MyShaders/
+├── Shaders/
+│   └── MyShaders.metal
+├── include/
+│   └── MyShaders.h
+├── MyShaders.m
+└── metal-compiler-plugin.json
+```
 
-See the `ExampleShaders` target in `Package.swift`. It uses `publicHeadersPath` and an empty `.m` file with the Metal source and headers.
+`MyShaders.m` can be empty. SwiftPM uses it to recognize the target as a Clang target.
 
-### Produce One Metal Library
-
-SwiftPM compiles recognized `.metal` files into `default.metallib`. The plugin also uses this name, so both build commands conflict.
-
-Keep the Metal files in one directory and exclude that directory from the target:
+Configure the target in `Package.swift`:
 
 ```swift
 .target(
-    name: "MyExampleShaders",
+    name: "MyShaders",
+    exclude: ["Shaders"],
+    publicHeadersPath: "include",
+    cSettings: [
+        .define("METAL_COMPILER_PLUGIN_DEBUG", .when(configuration: .debug))
+    ],
+    plugins: [
+        .plugin(name: "MetalCompilerPlugin", package: "MetalCompilerPlugin")
+    ]
+)
+```
+
+Swift and Metal can now use the same types from `MyShaders.h`. This prevents duplicate declarations and layout differences.
+
+### Produce One Metal Library
+
+SwiftPM compiles recognized `.metal` files into `default.metallib`. The plugin uses the same name, so both build commands conflict.
+
+Keep all Metal files in `Shaders` and exclude that directory from the target:
+
+```swift
+.target(
+    name: "MyShaders",
     exclude: ["Shaders"],
     plugins: [
         .plugin(name: "MetalCompilerPlugin", package: "MetalCompilerPlugin")
@@ -154,42 +180,48 @@ Keep the Metal files in one directory and exclude that directory from the target
 )
 ```
 
-The plugin scans the target directory with `FileManager`, so it still finds files under `Shaders`. The output bundle contains one `default.metallib`.
+The plugin scans excluded directories with `FileManager`, but SwiftPM does not compile their contents. The output bundle contains one `default.metallib`.
 
 Without a common directory, list each `.metal` file in `exclude`. SwiftPM does not support glob patterns in this setting.
 
 ### Include Headers from Another Package Target
 
-Declare the package target as a dependency:
+Declare the header target as a dependency. Use `publicHeadersPath` for each target's local headers:
 
 ```swift
+.target(
+    name: "DependencyShaders",
+    publicHeadersPath: "include"
+),
 .target(
     name: "ExampleShaders",
     dependencies: ["DependencyShaders"],
     exclude: ["Shaders"],
+    publicHeadersPath: "include",
     plugins: [
         .plugin(name: "MetalCompilerPlugin", package: "MetalCompilerPlugin")
     ]
 )
 ```
 
-Enable dependency include paths in `Sources/ExampleShaders/metal-compiler-plugin.json`:
+Configure the include paths in `Sources/ExampleShaders/metal-compiler-plugin.json`:
 
-```json
+```json5
 {
-    "include-dependencies": true
+    "include-dependencies": true,
+    "dependency-path-suffix": "include",
+    "include-paths": ["include"],
 }
 ```
 
-The Metal source can now include a header from `DependencyShaders`:
+The Metal source can now include local and dependency headers:
 
 ```metal
+#include "ExampleShaders.h"
 #include "DependencyShaders.h"
 ```
 
-By default, the plugin adds each dependency target directory as an `-I` path. It also adds directories from transitive dependencies.
-
-If each dependency stores headers in an `include` directory, add `"dependency-path-suffix": "include"` to the configuration.
+The plugin adds direct, product, and transitive dependency directories as `-I` paths. `dependency-path-suffix` appends `include` to each path.
 
 ## License
 
