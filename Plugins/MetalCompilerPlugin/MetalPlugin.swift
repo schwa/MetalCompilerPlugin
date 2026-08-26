@@ -29,6 +29,10 @@ struct MetalPlugin: BuildToolPlugin {
 struct MetalCompiler: Decodable {
 
     struct Configuration: Decodable {
+        struct Section: Decodable {
+            let flags: [String]?
+        }
+
         enum CodingKeys: String, CodingKey {
             case useXcrun = "xcrun"
             case metalPath = "metal"
@@ -40,6 +44,8 @@ struct MetalCompiler: Decodable {
             case output = "output"
             case cache = "cache"
             case extraFlags = "flags"
+            case debug
+            case release
             case pluginLogging = "plugin-logging"
             case verboseLogging = "verbose-logging"
             case metalEnableLogging = "metal-enable-logging"
@@ -57,6 +63,8 @@ struct MetalCompiler: Decodable {
         var output: String = "default.metallib"
         var cache: String?
         var extraFlags: [String]?
+        var debug: Section?
+        var release: Section?
         var pluginLogging: Bool = false
         var verboseLogging: Bool = false
         var metalEnableLogging: Bool = false
@@ -76,6 +84,8 @@ struct MetalCompiler: Decodable {
             output = try container.decodeIfPresent(String.self, forKey: .output) ?? "default.metallib"
             cache = try container.decodeIfPresent(String.self, forKey: .cache)
             extraFlags = try container.decodeIfPresent([String].self, forKey: .extraFlags)
+            debug = try container.decodeIfPresent(Section.self, forKey: .debug)
+            release = try container.decodeIfPresent(Section.self, forKey: .release)
             pluginLogging = try container.decodeIfPresent(Bool.self, forKey: .pluginLogging) ?? false
             verboseLogging = try container.decodeIfPresent(Bool.self, forKey: .verboseLogging) ?? false
             metalEnableLogging = try container.decodeIfPresent(Bool.self, forKey: .metalEnableLogging) ?? false
@@ -127,11 +137,13 @@ struct MetalCompiler: Decodable {
             logger?("Using metal compiler at '\(metalPath)'")
         }
 
-        if let extraFlags = config.extraFlags {
-            arguments += extraFlags
-            verbose?("Extra flags: \(extraFlags.joined(separator: " "))")
+        let isDebug = target.hasCompilationCondition("METAL_COMPILER_PLUGIN_DEBUG")
+        let configuredFlags = (isDebug ? config.debug : config.release)?.flags ?? config.extraFlags
+        if let configuredFlags {
+            arguments += configuredFlags
+            verbose?("Configured flags: \(configuredFlags.joined(separator: " "))")
         }
-        else if target.hasCompilationCondition("METAL_COMPILER_PLUGIN_DEBUG") {
+        else if isDebug {
             arguments += ["-gline-tables-only", "-frecord-sources"]
             verbose?("Default debug flags: -gline-tables-only -frecord-sources")
         }

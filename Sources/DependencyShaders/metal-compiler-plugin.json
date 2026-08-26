@@ -2,5 +2,7 @@
     "plugin-logging": true,
     "include-dependencies": true,
     "include-paths": ["include"],
+    "flags": ["-DMETAL_COMPILER_PLUGIN_COMMON_FLAGS"],
+    "debug": {},
     "verbose-logging": false,
 }

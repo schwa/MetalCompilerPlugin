@@ -3,5 +3,11 @@
     "include-dependencies": true,
     "dependency-path-suffix": "include",
     "include-paths": ["include"],
+    "debug": {
+        "flags": ["-DMETAL_COMPILER_PLUGIN_CONFIGURATION_DEBUG", "-gline-tables-only", "-frecord-sources"],
+    },
+    "release": {
+        "flags": ["-DMETAL_COMPILER_PLUGIN_CONFIGURATION_RELEASE"],
+    },
     "verbose-logging": false,
 }

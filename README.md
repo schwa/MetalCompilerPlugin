@@ -46,11 +46,11 @@ For example:
     ]
 ```
 
-The `METAL_COMPILER_PLUGIN_DEBUG` condition adds `-gline-tables-only` and `-frecord-sources` to debug builds. Release builds omit these flags and the shader source. Build-tool plugins cannot read the active build configuration directly. The conditional setting passes the configuration through the resolved target settings.
+`METAL_COMPILER_PLUGIN_DEBUG` selects the `debug` section. Without the condition, the plugin selects `release`. SwiftPM does not expose the active build configuration directly, so the package condition supplies this selection.
 
-> **IMPORTANT:** Earlier versions added debug flags whenever `flags` was absent.
->
-> The current behavior requires `METAL_COMPILER_PLUGIN_DEBUG` when `flags` is absent. An explicit `flags` array applies to every build configuration.
+The selected section's `flags` override top-level `flags`. Without either value, Debug adds source information and Release adds no flags.
+
+> **IMPORTANT:** Existing top-level `flags` continue to work in every build configuration that does not override them.
 
 Put the Metal files in `Sources/MyExampleShaders/Shaders/`. The plugin scans excluded directories, but SwiftPM does not compile their contents.
 
@@ -61,6 +61,8 @@ Place `metal-compiler-plugin.json` or `.metal-compiler-plugin.json` in the targe
 ### Configuration Options
 
 Configuration files use JSON5. They support `//` line comments, `/* */` block comments, and trailing commas. All options are optional. Remove options that you do not need.
+
+The `debug` and `release` sections accept `flags`. All other options remain at the top level.
 
 ```jsonc
 {
@@ -92,10 +94,19 @@ Configuration files use JSON5. They support `//` line comments, `/* */` block co
     // Set the module cache directory. Default: the plugin work directory.
     "cache": "/path/to/cache",
 
-    // Use these flags in every build configuration.
-    // This value includes shader source in Debug and Release.
-    // Remove flags to use METAL_COMPILER_PLUGIN_DEBUG instead.
-    "flags": ["-gline-tables-only", "-frecord-sources"],
+    // Use these flags if the selected section omits flags.
+    // Existing configurations can keep only this top-level option.
+    "flags": ["-DMY_COMMON_METAL_FLAG"],
+
+    "debug": {
+        // Override top-level flags for marked debug builds.
+        "flags": ["-gline-tables-only", "-frecord-sources"],
+    },
+
+    "release": {
+        // Override top-level flags when the debug condition is absent.
+        "flags": [],
+    },
 
     // Enable plugin logging. Default: false.
     "plugin-logging": false,
