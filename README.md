@@ -128,6 +128,16 @@ The `debug` and `release` sections accept `flags`. All other options remain at t
 }
 ```
 
+## Support API
+
+The `MetalCompilerPluginSupport` product adds these helpers to `Bundle`:
+
+- `parentBundle` returns the bundle that contains the receiver.
+- `childBundles` returns the resource bundles inside the receiver.
+- `childBundle(withSuffix:)` returns the first child bundle whose name ends with `_<suffix>.bundle`.
+
+These helpers are part of this package. They are not Foundation APIs.
+
 ## Tricks and Tips
 
 ### Create a Pure-Metal Target
@@ -183,6 +193,59 @@ Keep all Metal files in `Shaders` and exclude that directory from the target:
 The plugin scans excluded directories with `FileManager`, but SwiftPM does not compile their contents. The output bundle contains one `default.metallib`.
 
 Without a common directory, list each `.metal` file in `exclude`. SwiftPM does not support glob patterns in this setting.
+
+### Find and Load the Shader Bundle
+
+SwiftPM stores the library in a target resource bundle, not necessarily in the main bundle. Add the support library to the loading target:
+
+```swift
+.target(
+    name: "MyApp",
+    dependencies: [
+        "MyShaders",
+        .product(name: "MetalCompilerPluginSupport", package: "MetalCompilerPlugin")
+    ]
+)
+```
+
+Use the target-name suffix to find the resource bundle and load its `default.metallib`:
+
+```swift
+import Foundation
+import Metal
+import MetalCompilerPluginSupport
+
+final class ShaderBundleToken {
+    static let bundle = Bundle(for: ShaderBundleToken.self)
+}
+
+enum ShaderLibraryError: Error {
+    case metalUnavailable
+    case shaderBundleNotFound
+}
+
+func loadShaderLibrary(from containingBundle: Bundle, targetName: String) throws -> any MTLLibrary {
+    guard let device = MTLCreateSystemDefaultDevice() else {
+        throw ShaderLibraryError.metalUnavailable
+    }
+    // childBundle(withSuffix:) is part of MetalCompilerPluginSupport.
+    guard let shaderBundle = containingBundle.childBundle(withSuffix: targetName) else {
+        throw ShaderLibraryError.shaderBundleNotFound
+    }
+    return try device.makeDefaultLibrary(bundle: shaderBundle)
+}
+```
+
+Use the token from the target that loads the shaders:
+
+```swift
+let library = try loadShaderLibrary(
+    from: ShaderBundleToken.bundle,
+    targetName: "MyShaders"
+)
+```
+
+The `default.metallib` name lets `makeDefaultLibrary(bundle:)` find the library without a file URL.
 
 ### Include Headers from Another Package Target
 

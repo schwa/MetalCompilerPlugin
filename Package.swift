@@ -38,8 +38,7 @@ let package = Package(
         ),
         .testTarget(
             name: "MetalCompilerPluginTests",
-            dependencies: ["ExampleShaders"],
-            resources: [.copy("Empty.txt")],
+            dependencies: ["ExampleShaders", "MetalCompilerPluginSupport"],
             swiftSettings: [.define("METAL_COMPILER_PLUGIN_DEBUG", .when(configuration: .debug))]
         )
     ]

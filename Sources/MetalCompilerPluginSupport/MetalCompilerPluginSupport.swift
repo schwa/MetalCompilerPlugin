@@ -29,7 +29,7 @@ public extension Bundle {
 
     /// Returns the first child bundle whose name ends with `_<suffix>.bundle`.
     ///
-    /// Use `Bundle.module.parentBundle?.childBundle(withSuffix: "<target name>")` to find a shader bundle.
+    /// Call this method on the bundle that contains the generated package resource bundles.
     ///
     /// - Parameter suffix: The target-name suffix of the bundle.
     /// - Returns: The matching bundle, or `nil` if no child bundle matches.
