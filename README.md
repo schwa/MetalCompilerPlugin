@@ -46,7 +46,12 @@ For example:
     ]
 ```
 
-`METAL_COMPILER_PLUGIN_DEBUG` selects the `debug` section. Without the condition, the plugin selects `release`. SwiftPM does not expose the active build configuration directly, so the package condition supplies this selection.
+The plugin selects the `debug` or `release` section when the Metal compiler runs:
+
+- In Xcode, the plugin uses the build configuration. A configuration named `Debug` selects `debug`. All other configurations, for example `Release` or `Staging`, select `release`. Xcode ignores `METAL_COMPILER_PLUGIN_DEBUG`.
+- With `swift build`, `METAL_COMPILER_PLUGIN_DEBUG` selects `debug`. Without the condition, the plugin selects `release`.
+
+Xcode does not apply `.when(configuration:)` to the conditions that it gives to plugins. Thus, in earlier versions, Xcode Release builds and archives used the `debug` section and included the Metal source.
 
 The selected section's `flags` override top-level `flags`. Without either value, Debug adds source information and Release adds no flags.
 

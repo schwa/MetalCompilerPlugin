@@ -138,15 +138,11 @@ struct MetalCompiler: Decodable {
         }
 
         let isDebug = target.hasCompilationCondition("METAL_COMPILER_PLUGIN_DEBUG")
-        let configuredFlags = (isDebug ? config.debug : config.release)?.flags ?? config.extraFlags
-        if let configuredFlags {
-            arguments += configuredFlags
-            verbose?("Configured flags: \(configuredFlags.joined(separator: " "))")
-        }
-        else if isDebug {
-            arguments += ["-gline-tables-only", "-frecord-sources"]
-            verbose?("Default debug flags: -gline-tables-only -frecord-sources")
-        }
+        let debugFlags = config.debug?.flags ?? config.extraFlags ?? ["-gline-tables-only", "-frecord-sources"]
+        let releaseFlags = config.release?.flags ?? config.extraFlags ?? []
+        verbose?("Debug flags: \(debugFlags.joined(separator: " "))")
+        verbose?("Release flags: \(releaseFlags.joined(separator: " "))")
+        verbose?("Planning-time isDebug (CLI fallback): \(isDebug)")
 
         if config.metalEnableLogging {
             arguments += ["-fmetal-enable-logging"]
@@ -218,13 +214,32 @@ struct MetalCompiler: Decodable {
             }
         }
 
-        verbose?("Command: \(executable) \(arguments.joined(separator: " "))")
-
+        // Xcode ignores `.when(configuration:)` for plugins but sets $CONFIGURATION when the command runs.
+        // $CONFIGURATION_BUILD_DIR guards against a stray $CONFIGURATION under `swift build`.
+        func shellQuote(_ string: String) -> String {
+            "'" + string.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        }
+        let fallback = isDebug ? "debug" : "release"
+        let debugPart = debugFlags.map(shellQuote).joined(separator: " ")
+        let releasePart = releaseFlags.map(shellQuote).joined(separator: " ")
+        let prefixCount = config.useXcrun ? 2 : 1
+        let head = ([executable] + arguments.prefix(prefixCount - 1)).map(shellQuote).joined(separator: " ")
+        let tail = arguments.dropFirst(prefixCount - 1).map(shellQuote).joined(separator: " ")
+        let script = """
+        mode=\(fallback)
+        if [ -n "$CONFIGURATION_BUILD_DIR" ]; then mode="$CONFIGURATION"; fi
+        case "$mode" in
+          Debug|debug) set -- \(debugPart) ;;
+          *) set -- \(releasePart) ;;
+        esac
+        exec \(head) "$@" \(tail)
+        """
+        verbose?("Wrapper script:\n\(script)")
 
         return .buildCommand(
             displayName: "metal",
-            executable: Path(executable),
-            arguments: arguments,
+            executable: Path("/bin/sh"),
+            arguments: ["-c", script],
             environment: environment,
             inputFiles: inputs.map { Path($0) },
             outputFiles: [output]
