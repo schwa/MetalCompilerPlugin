@@ -1,0 +1,31 @@
+name: Host
+configs:
+  Debug: debug
+  Release: release
+  Staging: release
+settings:
+  base:
+    CODE_SIGNING_ALLOWED: NO
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+packages:
+  HostShaders:
+    path: HostShaders
+targets:
+  Host:
+    type: application
+    platform: macOS
+    sources: [App]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.schwa.mcphost
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - package: HostShaders
+        product: HostShaders
+schemes:
+  Host:
+    build:
+      targets:
+        Host: all
+    archive:
+      config: Release

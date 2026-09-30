@@ -1,0 +1,4 @@
+{
+    "debug": { "flags": ["-DCONFIG_DEBUG", "-gline-tables-only", "-frecord-sources"] },
+    "release": { "flags": ["-DCONFIG_RELEASE"] }
+}

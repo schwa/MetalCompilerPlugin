@@ -291,6 +291,16 @@ The Metal source can now include local and dependency headers:
 
 The plugin adds direct, product, and transitive dependency directories as `-I` paths. `dependency-path-suffix` appends `include` to each path.
 
+## Development
+
+`swift test` builds the package alone. It cannot find problems that occur only when an Xcode app depends on the package. Before a release, run the integration checks:
+
+```sh
+Tests/Integration/matrix.sh
+```
+
+The script builds a test app in Xcode (Debug, Release, a custom configuration, and an archive) and with `swift build`. It then examines each `default.metallib` for the configuration and for the Metal source. It requires `xcodegen` and `xcb`.
+
 ## License
 
 BSD 3-clause. See [LICENSE.md](LICENSE.md).
