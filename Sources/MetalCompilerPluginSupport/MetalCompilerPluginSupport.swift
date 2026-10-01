@@ -11,19 +11,18 @@ public extension Bundle {
     }
 
     var childBundles: [Bundle] {
-        guard let resourcePath else {
-            return []
-        }
+        // Xcode copies resource bundles into Contents/Resources; SwiftPM places
+        // them next to the containing .xctest/.app bundle. Search both.
+        let searchPaths = [resourcePath, bundleURL.deletingLastPathComponent().path]
+            .compactMap { $0 }
         let fileManager = FileManager()
-        guard let paths = try? fileManager.contentsOfDirectory(atPath: resourcePath) else {
-            return []
-        }
 
-        return paths.filter {
-            $0.hasSuffix(".bundle")
-        }
-        .map {
-            Bundle(path: resourcePath.appending("/").appending($0))!
+        return searchPaths.flatMap { searchPath -> [Bundle] in
+            guard let paths = try? fileManager.contentsOfDirectory(atPath: searchPath) else {
+                return []
+            }
+            return paths.filter { $0.hasSuffix(".bundle") }
+                .compactMap { Bundle(path: searchPath.appending("/").appending($0)) }
         }
     }
 
