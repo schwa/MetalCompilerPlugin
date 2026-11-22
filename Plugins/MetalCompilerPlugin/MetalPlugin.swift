@@ -154,6 +154,10 @@ struct MetalCompiler: Decodable {
         arguments += [ "-fmodules-cache-path=\(cache)" ]
         verbose?("Cache directory: \(cache)")
 
+        // Directories whose headers the shaders may include. Their headers are inputs of the build command, so editing
+        // one, including in a dependency, recompiles the library.
+        var headerDirectories = [target.directory.string]
+
         // Dependencies
         if config.includeDependencies {
             logger?("Including dependency include path(s)")
@@ -168,6 +172,7 @@ struct MetalCompiler: Decodable {
             for path in includePaths {
                 arguments += ["-I", path]
             }
+            headerDirectories += includePaths
         }
 
         // User-specified include paths
@@ -177,6 +182,7 @@ struct MetalCompiler: Decodable {
                 let fullPath = target.directory.appending([relativePath]).string
                 verbose?("  -I \(fullPath)")
                 arguments += ["-I", fullPath]
+                headerDirectories.append(fullPath)
             }
         }
 
@@ -241,9 +247,24 @@ struct MetalCompiler: Decodable {
             executable: Path("/bin/sh"),
             arguments: ["-c", script],
             environment: environment,
-            inputFiles: inputs.map { Path($0) },
+            inputFiles: (inputs + headerFiles(in: headerDirectories, excluding: Set(inputs))).map { Path($0) },
             outputFiles: [output]
         )
+    }
+
+    // Every header under `directories`, once each, in a stable order.
+    private func headerFiles(in directories: [String], excluding excluded: Set<String>) -> [String] {
+        let extensions: Set<String> = ["h", "hpp", "metal"]
+        var found = Set<String>()
+        for directory in directories {
+            guard let enumerator = FileManager.default.enumerator(at: URL(fileURLWithPath: directory), includingPropertiesForKeys: nil, options: [], errorHandler: { _, _ in true }) else {
+                continue
+            }
+            for case let url as URL in enumerator where extensions.contains(url.pathExtension) {
+                found.insert(url.path)
+            }
+        }
+        return found.subtracting(excluded).sorted()
     }
 
     private func collectIncludePaths(
